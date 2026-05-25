@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 import { subscribeToPush, checkSubscription } from './lib/push';
 
-const Icon = ({ d, size = 'w-5 h-5', stroke = 2 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={size} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={stroke} d={d} />
+// ─── ICONS ───────────────────────────────────────────────────────────────────
+const Icon = ({ d, size = 'w-5 h-5', color }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={`${size} ${color || ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />
   </svg>
 );
 
@@ -21,14 +22,15 @@ const Icons = {
   note:   'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
 };
 
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const NOTE_COLORS = [
-  { label: 'Blanco',   value: '#FFFBFE' },
-  { label: 'Lavanda',  value: '#F6EDFF' },
+  { label: 'Blanco',   value: '#FFFFFF' },
+  { label: 'Lavanda',  value: '#EDE7F6' },
   { label: 'Rosa',     value: '#FCE4EC' },
-  { label: 'Azul',     value: '#E3F2FD' },
-  { label: 'Verde',    value: '#E8F5E9' },
-  { label: 'Amarillo', value: '#FFFDE7' },
-  { label: 'Naranja',  value: '#FFF3E0' },
+  { label: 'Cielo',    value: '#E1F5FE' },
+  { label: 'Menta',    value: '#E8F5E9' },
+  { label: 'Miel',     value: '#FFF8E1' },
+  { label: 'Melocotón',value: '#FBE9E7' },
   { label: 'Lila',     value: '#F3E5F5' },
 ];
 
@@ -43,66 +45,99 @@ const fmt = (d) => {
     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
   });
 };
-
 const isOverdue = (d) => d && new Date(d) < new Date();
 
-function TagChip({ tag, selected, onClick, small, onRemove }) {
+// ─── TAG CHIP ─────────────────────────────────────────────────────────────────
+function TagChip({ tag, selected, onClick, small }) {
   return (
     <button
       onClick={onClick}
-      className={`inline-flex items-center gap-1 rounded-full font-medium transition-all
-        ${small ? 'text-xs px-2 py-0.5' : 'text-sm px-3 py-1'}
-        ${selected ? 'shadow-sm' : 'opacity-75 hover:opacity-100'}`}
+      className={`inline-flex items-center rounded-full font-medium whitespace-nowrap transition-all
+        ${small ? 'text-[11px] px-2 py-0.5' : 'text-[13px] px-3.5 py-1.5'}
+        ${selected ? 'shadow-sm scale-[1.03]' : 'opacity-80 hover:opacity-100'}`}
       style={{
-        backgroundColor: selected ? tag.color : tag.color + '25',
+        backgroundColor: selected ? tag.color : tag.color + '22',
         color: selected ? '#fff' : tag.color,
-        border: `1.5px solid ${tag.color}`,
+        border: `1.5px solid ${tag.color}${selected ? '' : '66'}`,
       }}
     >
       {tag.name}
-      {onRemove && (
-        <span onClick={(e) => { e.stopPropagation(); onRemove(); }} className="ml-0.5 leading-none hover:opacity-60">×</span>
-      )}
     </button>
   );
 }
 
+// ─── NOTE CARD ────────────────────────────────────────────────────────────────
 function NoteCard({ note, tags, onClick }) {
   const noteTags = tags.filter(t => note.tag_ids?.includes(t.id));
   const reminder = note.reminder;
+  const hasColor = note.color && note.color !== '#FFFFFF';
+
   return (
     <div
       onClick={() => onClick(note)}
-      className="rounded-3xl p-4 cursor-pointer transition-all duration-150 hover:shadow-md active:scale-95 relative overflow-hidden"
-      style={{ backgroundColor: note.color || '#FFFBFE' }}
+      className="w-full rounded-[28px] overflow-hidden cursor-pointer transition-all duration-200 active:scale-[0.98]"
+      style={{
+        backgroundColor: note.color || '#FFFFFF',
+        boxShadow: hasColor
+          ? '0 2px 16px rgba(103,80,164,0.10)'
+          : '0 2px 16px rgba(103,80,164,0.07)',
+      }}
     >
-      {note.pinned && (
-        <span className="absolute top-3 right-3 text-purple-500 opacity-50">
-          <Icon d={Icons.pin} size="w-3.5 h-3.5" />
-        </span>
-      )}
-      {note.title && <p className="font-semibold text-gray-800 text-[15px] leading-snug mb-1 pr-4 line-clamp-2">{note.title}</p>}
-      {note.content && <p className="text-gray-500 text-[13px] leading-relaxed line-clamp-4">{note.content}</p>}
-      {reminder && !reminder.sent && (
-        <div className={`flex items-center gap-1 mt-2 text-[11px] font-medium ${isOverdue(reminder.scheduled_at) ? 'text-red-500' : 'text-purple-600'}`}>
-          <Icon d={Icons.bell} size="w-3 h-3" />
-          <span>{fmt(reminder.scheduled_at)}</span>
+      {/* Top accent bar */}
+      <div
+        className="h-1 w-full"
+        style={{ backgroundColor: hasColor ? note.color : '#EDE7F6', filter: 'brightness(0.85)' }}
+      />
+
+      <div className="px-5 pt-4 pb-4">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="flex-1 min-w-0">
+            {note.title ? (
+              <h3 className="font-bold text-[#1C1B1F] text-[18px] leading-snug truncate">{note.title}</h3>
+            ) : (
+              <h3 className="font-medium text-[#79747E] text-[16px] italic">Sin título</h3>
+            )}
+          </div>
+          {note.pinned && (
+            <div className="flex-shrink-0 mt-0.5">
+              <Icon d={Icons.pin} size="w-4 h-4" color="text-[#6750A4] opacity-60" />
+            </div>
+          )}
         </div>
-      )}
-      {noteTags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2">
-          {noteTags.map(t => <TagChip key={t.id} tag={t} selected small />)}
-        </div>
-      )}
+
+        {/* Content */}
+        {note.content && (
+          <p className="text-[#49454F] text-[14px] leading-relaxed line-clamp-3">{note.content}</p>
+        )}
+
+        {/* Footer */}
+        {(reminder || noteTags.length > 0) && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-3">
+            {reminder && !reminder.sent && (
+              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full
+                ${isOverdue(reminder.scheduled_at)
+                  ? 'bg-red-100 text-red-600'
+                  : 'bg-[#6750A4]/10 text-[#6750A4]'}`}
+              >
+                <Icon d={Icons.bell} size="w-3 h-3" />
+                {fmt(reminder.scheduled_at)}
+              </span>
+            )}
+            {noteTags.map(t => <TagChip key={t.id} tag={t} selected small />)}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
+// ─── NOTE EDITOR ──────────────────────────────────────────────────────────────
 function NoteEditor({ note, tags, onSave, onDelete, onClose }) {
   const isNew = !note?.id;
   const [title, setTitle]               = useState(note?.title || '');
   const [content, setContent]           = useState(note?.content || '');
-  const [color, setColor]               = useState(note?.color || '#FFFBFE');
+  const [color, setColor]               = useState(note?.color || '#FFFFFF');
   const [pinned, setPinned]             = useState(note?.pinned || false);
   const [selTags, setSelTags]           = useState(note?.tag_ids || []);
   const [showReminder, setShowReminder] = useState(false);
@@ -137,60 +172,60 @@ function NoteEditor({ note, tags, onSave, onDelete, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: color }}>
+      {/* Toolbar */}
       <div className="flex items-center justify-between px-3 pt-12 pb-2">
-        <button onClick={onClose} className="p-2.5 rounded-full hover:bg-black/10 transition-colors">
+        <button onClick={onClose} className="p-2.5 rounded-full hover:bg-black/8 transition-colors">
           <Icon d={Icons.back} size="w-6 h-6" />
         </button>
         <div className="flex items-center gap-1">
-          <button onClick={() => setPinned(!pinned)} className={`p-2.5 rounded-full transition-colors ${pinned ? 'text-purple-700 bg-purple-100' : 'hover:bg-black/10'}`}>
+          <button onClick={() => setPinned(!pinned)}
+            className={`p-2.5 rounded-full transition-colors ${pinned ? 'text-[#6750A4] bg-[#EDE7F6]' : 'hover:bg-black/8'}`}>
             <Icon d={Icons.pin} size="w-5 h-5" />
           </button>
           {!isNew && (
-            <button onClick={() => onDelete(note.id)} className="p-2.5 rounded-full hover:bg-red-50 text-red-400 transition-colors">
+            <button onClick={() => onDelete(note.id)}
+              className="p-2.5 rounded-full hover:bg-red-50 text-red-400 transition-colors">
               <Icon d={Icons.delete} size="w-5 h-5" />
             </button>
           )}
-          <button
-            onClick={handleSave}
+          <button onClick={handleSave}
             disabled={saving || (!title.trim() && !content.trim())}
             className="bg-[#6750A4] text-white px-5 py-2 rounded-full text-sm font-semibold ml-1 disabled:opacity-40 active:scale-95 transition-all"
-          >
+            style={{ boxShadow: '0 2px 10px rgba(103,80,164,0.35)' }}>
             {saving ? '...' : 'Guardar'}
           </button>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 pb-10 space-y-5">
-        <input
-          value={title} onChange={e => setTitle(e.target.value)}
+        <input value={title} onChange={e => setTitle(e.target.value)}
           placeholder="Título"
-          className="w-full text-[26px] font-bold bg-transparent border-none outline-none text-gray-800 placeholder-gray-300"
-        />
-        <textarea
-          value={content} onChange={e => setContent(e.target.value)}
+          className="w-full text-[26px] font-bold bg-transparent border-none outline-none text-[#1C1B1F] placeholder-[#C4C7C5]" />
+        <textarea value={content} onChange={e => setContent(e.target.value)}
           placeholder="Escribe tu nota..." rows={7}
-          className="w-full text-[15px] bg-transparent border-none outline-none text-gray-700 placeholder-gray-300 resize-none leading-relaxed"
-        />
+          className="w-full text-[15px] bg-transparent border-none outline-none text-[#49454F] placeholder-[#C4C7C5] resize-none leading-relaxed" />
 
+        {/* Color picker */}
         <div>
-          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Color</p>
-          <div className="flex gap-2.5 flex-wrap">
+          <p className="text-[11px] font-bold text-[#79747E] uppercase tracking-widest mb-3">Color de nota</p>
+          <div className="flex gap-3 flex-wrap">
             {NOTE_COLORS.map(({ value }) => (
               <button key={value} onClick={() => setColor(value)}
-                className="w-8 h-8 rounded-full border-2 transition-all"
+                className="w-9 h-9 rounded-full border-2 transition-all"
                 style={{
                   backgroundColor: value,
-                  borderColor: color === value ? '#6750A4' : '#ddd',
+                  borderColor: color === value ? '#6750A4' : '#E8DEF8',
                   transform: color === value ? 'scale(1.25)' : 'scale(1)',
-                }}
-              />
+                  boxShadow: color === value ? '0 0 0 3px #EDE7F6' : '0 1px 3px rgba(0,0,0,0.1)',
+                }} />
             ))}
           </div>
         </div>
 
+        {/* Tags */}
         {tags.length > 0 && (
           <div>
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Etiquetas</p>
+            <p className="text-[11px] font-bold text-[#79747E] uppercase tracking-widest mb-3">Etiquetas</p>
             <div className="flex flex-wrap gap-2">
               {tags.map(t => (
                 <TagChip key={t.id} tag={t} selected={selTags.includes(t.id)} onClick={() => toggleTag(t.id)} />
@@ -199,11 +234,12 @@ function NoteEditor({ note, tags, onSave, onDelete, onClose }) {
           </div>
         )}
 
+        {/* Reminder */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Recordatorio</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[11px] font-bold text-[#79747E] uppercase tracking-widest">Recordatorio</p>
             <button onClick={() => setShowReminder(!showReminder)}
-              className={`p-2 rounded-full transition-colors ${showReminder ? 'bg-purple-100 text-purple-700' : 'text-gray-400 hover:bg-black/10'}`}>
+              className={`p-2 rounded-full transition-colors ${showReminder ? 'bg-[#EDE7F6] text-[#6750A4]' : 'text-[#79747E] hover:bg-black/8'}`}>
               <Icon d={Icons.bell} size="w-5 h-5" />
             </button>
           </div>
@@ -211,11 +247,9 @@ function NoteEditor({ note, tags, onSave, onDelete, onClose }) {
             <div className="space-y-2.5">
               <input type="text" value={remTitle} onChange={e => setRemTitle(e.target.value)}
                 placeholder="Título del recordatorio"
-                className="w-full bg-white/60 border border-purple-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-purple-400"
-              />
+                className="w-full bg-white/70 border border-[#CAC4D0] rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#6750A4] transition-colors" />
               <input type="datetime-local" value={remDate} onChange={e => setRemDate(e.target.value)}
-                className="w-full bg-white/60 border border-purple-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-purple-400"
-              />
+                className="w-full bg-white/70 border border-[#CAC4D0] rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#6750A4] transition-colors" />
             </div>
           )}
         </div>
@@ -224,12 +258,15 @@ function NoteEditor({ note, tags, onSave, onDelete, onClose }) {
   );
 }
 
+// ─── HOME VIEW ────────────────────────────────────────────────────────────────
 function HomeView({ notes, tags, onNoteClick, onNewNote }) {
   const [search, setSearch] = useState('');
   const [activeTag, setActiveTag] = useState(null);
 
   const filtered = notes.filter(n => {
-    const matchText = !search || n.title?.toLowerCase().includes(search.toLowerCase()) || n.content?.toLowerCase().includes(search.toLowerCase());
+    const matchText = !search ||
+      n.title?.toLowerCase().includes(search.toLowerCase()) ||
+      n.content?.toLowerCase().includes(search.toLowerCase());
     const matchTag = !activeTag || n.tag_ids?.includes(activeTag);
     return matchText && matchTag;
   });
@@ -238,65 +275,90 @@ function HomeView({ notes, tags, onNoteClick, onNewNote }) {
   const unpinned = filtered.filter(n => !n.pinned);
 
   return (
-    <div className="flex-1 overflow-y-auto pb-28">
+    <div className="flex-1 overflow-y-auto pb-32">
+      {/* Search bar */}
       <div className="px-4 pb-3">
-        <div className="flex items-center gap-2 bg-white rounded-3xl px-4 py-3 shadow-sm">
-          <Icon d={Icons.search} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar notas..."
-            className="flex-1 bg-transparent outline-none text-gray-700 text-sm" />
-          {search && <button onClick={() => setSearch('')} className="text-gray-300"><Icon d={Icons.close} size="w-4 h-4" /></button>}
+        <div className="flex items-center gap-3 bg-white rounded-2xl px-4 py-3.5"
+          style={{ boxShadow: '0 2px 12px rgba(103,80,164,0.10)' }}>
+          <Icon d={Icons.search} color="text-[#79747E]" />
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar notas..."
+            className="flex-1 bg-transparent outline-none text-[#1C1B1F] text-[15px] placeholder-[#79747E]" />
+          {search && (
+            <button onClick={() => setSearch('')} className="text-[#79747E]">
+              <Icon d={Icons.close} size="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
+      {/* Horizontal scrollable tags */}
       {tags.length > 0 && (
-        <div className="px-4 pb-3 flex gap-2 overflow-x-auto no-scrollbar">
-          <button onClick={() => setActiveTag(null)}
-            className={`flex-shrink-0 px-3 py-1 rounded-full text-sm font-medium border transition-all ${!activeTag ? 'bg-[#6750A4] text-white border-[#6750A4]' : 'border-gray-300 text-gray-500'}`}>
-            Todas
-          </button>
-          {tags.map(t => (
-            <div key={t.id} className="flex-shrink-0">
-              <TagChip tag={t} selected={activeTag === t.id} onClick={() => setActiveTag(activeTag === t.id ? null : t.id)} />
-            </div>
-          ))}
+        <div className="pb-4">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
+            <button
+              onClick={() => setActiveTag(null)}
+              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-semibold border-2 transition-all
+                ${!activeTag
+                  ? 'bg-[#6750A4] text-white border-[#6750A4]'
+                  : 'bg-white text-[#6750A4] border-[#CAC4D0]'}`}
+            >
+              Todas
+            </button>
+            {tags.map(t => (
+              <div key={t.id} className="flex-shrink-0">
+                <TagChip
+                  tag={t}
+                  selected={activeTag === t.id}
+                  onClick={() => setActiveTag(activeTag === t.id ? null : t.id)}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
-      <div className="px-4 space-y-4">
+      {/* Notes list */}
+      <div className="px-4 flex flex-col gap-3">
         {pinned.length > 0 && (
           <>
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-1">Fijadas</p>
-            <div className="grid grid-cols-2 gap-3">
-              {pinned.map(n => <NoteCard key={n.id} note={n} tags={tags} onClick={onNoteClick} />)}
+            <div className="flex items-center gap-2 px-1 mt-1">
+              <Icon d={Icons.pin} size="w-3.5 h-3.5" color="text-[#79747E]" />
+              <p className="text-[11px] font-bold text-[#79747E] uppercase tracking-widest">Fijadas</p>
             </div>
+            {pinned.map(n => <NoteCard key={n.id} note={n} tags={tags} onClick={onNoteClick} />)}
           </>
         )}
+
         {unpinned.length > 0 && (
           <>
-            {pinned.length > 0 && <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest px-1 mt-5">Otras</p>}
-            <div className="grid grid-cols-2 gap-3">
-              {unpinned.map(n => <NoteCard key={n.id} note={n} tags={tags} onClick={onNoteClick} />)}
-            </div>
+            {pinned.length > 0 && (
+              <p className="text-[11px] font-bold text-[#79747E] uppercase tracking-widest px-1 mt-3">Notas</p>
+            )}
+            {unpinned.map(n => <NoteCard key={n.id} note={n} tags={tags} onClick={onNoteClick} />)}
           </>
         )}
+
         {filtered.length === 0 && (
-          <div className="text-center py-24 text-gray-300">
-            <div className="text-6xl mb-3">📝</div>
-            <p className="font-semibold text-gray-400">Sin notas</p>
-            <p className="text-sm mt-1">Pulsa + para crear una</p>
+          <div className="text-center py-24">
+            <div className="text-6xl mb-4">📝</div>
+            <p className="font-semibold text-[#49454F] text-[16px]">Sin notas</p>
+            <p className="text-[#79747E] text-sm mt-1">Pulsa + para crear una</p>
           </div>
         )}
       </div>
 
+      {/* FAB */}
       <button onClick={onNewNote}
-        className="fixed bottom-24 right-4 w-16 h-16 bg-[#6750A4] rounded-2xl shadow-xl flex items-center justify-center text-white active:scale-95 transition-all"
-        style={{ boxShadow: '0 4px 20px rgba(103,80,164,0.4)' }}>
-        <Icon d={Icons.plus} size="w-7 h-7" stroke={2.5} />
+        className="fixed bottom-24 right-5 w-16 h-16 bg-[#6750A4] rounded-[20px] flex items-center justify-center text-white active:scale-95 transition-all"
+        style={{ boxShadow: '0 6px 24px rgba(103,80,164,0.45)' }}>
+        <Icon d={Icons.plus} size="w-7 h-7" />
       </button>
     </div>
   );
 }
 
+// ─── TAGS VIEW ────────────────────────────────────────────────────────────────
 function TagsView({ tags, onRefresh }) {
   const [name, setName]       = useState('');
   const [color, setColor]     = useState(TAG_COLORS[0]);
@@ -328,53 +390,69 @@ function TagsView({ tags, onRefresh }) {
 
   return (
     <div className="flex-1 overflow-y-auto pb-24 px-4">
-      <h2 className="text-[22px] font-bold text-gray-800 mb-5 mt-1">Etiquetas</h2>
-      <div className="bg-white rounded-3xl p-5 shadow-sm mb-5">
-        <p className="text-sm font-semibold text-gray-500 mb-3">{editing ? 'Editar etiqueta' : 'Nueva etiqueta'}</p>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="Nombre de la etiqueta"
-          className="w-full border border-gray-200 rounded-2xl px-4 py-2.5 text-sm outline-none focus:border-purple-400 mb-4" />
-        <div className="flex gap-2 mb-4">
+      {/* Form */}
+      <div className="bg-white rounded-[28px] p-5 mb-5" style={{ boxShadow: '0 2px 16px rgba(103,80,164,0.08)' }}>
+        <p className="text-sm font-bold text-[#49454F] mb-4">{editing ? 'Editar etiqueta' : 'Nueva etiqueta'}</p>
+        <input value={name} onChange={e => setName(e.target.value)}
+          placeholder="Nombre de la etiqueta"
+          className="w-full border-2 border-[#E8DEF8] rounded-2xl px-4 py-3 text-[15px] outline-none focus:border-[#6750A4] transition-colors mb-4 bg-[#FDFBFF]" />
+
+        <div className="flex gap-3 mb-4">
           {TAG_COLORS.map(c => (
-            <button key={c} onClick={() => setColor(c)} className="w-7 h-7 rounded-full border-2 transition-all"
-              style={{ backgroundColor: c, borderColor: color === c ? '#222' : 'transparent', transform: color === c ? 'scale(1.2)' : 'scale(1)' }} />
+            <button key={c} onClick={() => setColor(c)}
+              className="w-8 h-8 rounded-full border-2 transition-all flex-shrink-0"
+              style={{
+                backgroundColor: c,
+                borderColor: color === c ? '#1C1B1F' : 'transparent',
+                transform: color === c ? 'scale(1.2)' : 'scale(1)',
+              }} />
           ))}
         </div>
-        {name && <div className="mb-4"><TagChip tag={{ name, color }} selected /></div>}
+
+        {name && (
+          <div className="mb-4">
+            <TagChip tag={{ name, color }} selected />
+          </div>
+        )}
+
         <div className="flex gap-2">
           {editing && (
             <button onClick={() => { setEditing(null); setName(''); setColor(TAG_COLORS[0]); }}
-              className="flex-1 py-2.5 rounded-2xl border border-gray-200 text-sm font-medium text-gray-500">
+              className="flex-1 py-3 rounded-2xl border-2 border-[#CAC4D0] text-sm font-semibold text-[#49454F] active:scale-95 transition-all">
               Cancelar
             </button>
           )}
           <button onClick={save} disabled={!name.trim() || loading}
-            className="flex-1 py-2.5 rounded-2xl bg-[#6750A4] text-white text-sm font-semibold disabled:opacity-40">
-            {editing ? 'Guardar cambios' : 'Añadir etiqueta'}
+            className="flex-1 py-3 rounded-2xl bg-[#6750A4] text-white text-sm font-bold disabled:opacity-40 active:scale-95 transition-all"
+            style={{ boxShadow: '0 2px 10px rgba(103,80,164,0.3)' }}>
+            {editing ? 'Guardar' : 'Añadir'}
           </button>
         </div>
       </div>
 
-      <div className="space-y-2">
+      {/* Tags list */}
+      <div className="flex flex-col gap-2">
         {tags.map(tag => (
-          <div key={tag.id} className="bg-white rounded-2xl px-4 py-3.5 shadow-sm flex items-center justify-between">
+          <div key={tag.id} className="bg-white rounded-2xl px-5 py-4 flex items-center justify-between"
+            style={{ boxShadow: '0 1px 8px rgba(103,80,164,0.07)' }}>
             <div className="flex items-center gap-3">
-              <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: tag.color }} />
-              <span className="font-medium text-gray-800 text-[15px]">{tag.name}</span>
+              <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+              <span className="font-semibold text-[#1C1B1F] text-[15px]">{tag.name}</span>
             </div>
             <div className="flex gap-1">
-              <button onClick={() => startEdit(tag)} className="p-2 rounded-full hover:bg-gray-100 text-gray-400">
+              <button onClick={() => startEdit(tag)} className="p-2 rounded-full hover:bg-[#F3EDF7] text-[#79747E] transition-colors">
                 <Icon d={Icons.edit} size="w-4 h-4" />
               </button>
-              <button onClick={() => del(tag)} className="p-2 rounded-full hover:bg-red-50 text-red-400">
+              <button onClick={() => del(tag)} className="p-2 rounded-full hover:bg-red-50 text-red-400 transition-colors">
                 <Icon d={Icons.delete} size="w-4 h-4" />
               </button>
             </div>
           </div>
         ))}
         {tags.length === 0 && (
-          <div className="text-center py-16 text-gray-300">
-            <div className="text-5xl mb-2">🏷️</div>
-            <p className="text-gray-400 font-medium">Sin etiquetas</p>
+          <div className="text-center py-16">
+            <div className="text-5xl mb-3">🏷️</div>
+            <p className="text-[#49454F] font-semibold">Sin etiquetas</p>
           </div>
         )}
       </div>
@@ -382,6 +460,7 @@ function TagsView({ tags, onRefresh }) {
   );
 }
 
+// ─── REMINDERS VIEW ───────────────────────────────────────────────────────────
 function RemindersView({ reminders, notes }) {
   const getNote = (id) => notes.find(n => n.id === id);
   const upcoming = reminders.filter(r => !r.sent && !isOverdue(r.scheduled_at));
@@ -390,22 +469,27 @@ function RemindersView({ reminders, notes }) {
 
   const Item = ({ r, type }) => {
     const note = getNote(r.note_id);
-    const colors = {
-      overdue:  { border: 'border-red-400',   text: 'text-red-500',    badge: 'bg-red-50 text-red-400' },
-      upcoming: { border: 'border-[#6750A4]', text: 'text-purple-600', badge: 'bg-purple-50 text-purple-600' },
-      sent:     { border: 'border-gray-200',  text: 'text-gray-400',   badge: 'bg-gray-100 text-gray-400' },
+    const styles = {
+      overdue:  { bar: '#EF4444', bg: 'bg-white', badge: 'bg-red-50 text-red-500', text: 'text-red-500' },
+      upcoming: { bar: '#6750A4', bg: 'bg-white', badge: 'bg-[#EDE7F6] text-[#6750A4]', text: 'text-[#6750A4]' },
+      sent:     { bar: '#CAC4D0', bg: 'bg-white/60', badge: 'bg-gray-100 text-gray-400', text: 'text-gray-400' },
     }[type];
+
     return (
-      <div className={`bg-white rounded-2xl p-4 shadow-sm border-l-4 ${colors.border} ${type === 'sent' ? 'opacity-60' : ''}`}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-gray-800 text-sm truncate">{r.title}</p>
-            {note && <p className="text-xs text-gray-400 mt-0.5 truncate">📝 {note.title || 'Sin título'}</p>}
-            <p className={`text-xs mt-1.5 font-medium ${colors.text}`}>{fmt(r.scheduled_at)}</p>
+      <div className={`${styles.bg} rounded-2xl overflow-hidden flex ${type === 'sent' ? 'opacity-60' : ''}`}
+        style={{ boxShadow: '0 1px 8px rgba(103,80,164,0.07)' }}>
+        <div className="w-1 flex-shrink-0" style={{ backgroundColor: styles.bar }} />
+        <div className="flex-1 px-4 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-[#1C1B1F] text-[15px] truncate">{r.title}</p>
+              {note && <p className="text-[12px] text-[#79747E] mt-0.5 truncate">📝 {note.title || 'Sin título'}</p>}
+              <p className={`text-[12px] font-semibold mt-1.5 ${styles.text}`}>{fmt(r.scheduled_at)}</p>
+            </div>
+            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${styles.badge}`}>
+              {type === 'sent' ? '✓ Enviado' : type === 'overdue' ? 'Vencido' : 'Próximo'}
+            </span>
           </div>
-          <span className={`text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${colors.badge}`}>
-            {type === 'sent' ? '✓ Enviado' : type === 'overdue' ? 'Vencido' : 'Próximo'}
-          </span>
         </div>
       </div>
     );
@@ -413,28 +497,30 @@ function RemindersView({ reminders, notes }) {
 
   const Section = ({ title, items, type, color }) => items.length > 0 ? (
     <div className="mb-5">
-      <p className={`text-[11px] font-bold uppercase tracking-widest mb-2 ${color}`}>{title}</p>
-      <div className="space-y-2">{items.map(r => <Item key={r.id} r={r} type={type} />)}</div>
+      <p className={`text-[11px] font-bold uppercase tracking-widest mb-2.5 ${color}`}>{title}</p>
+      <div className="flex flex-col gap-2">
+        {items.map(r => <Item key={r.id} r={r} type={type} />)}
+      </div>
     </div>
   ) : null;
 
   return (
     <div className="flex-1 overflow-y-auto pb-24 px-4">
-      <h2 className="text-[22px] font-bold text-gray-800 mb-5 mt-1">Recordatorios</h2>
-      <Section title="Vencidos"  items={overdue}  type="overdue"  color="text-red-400" />
-      <Section title="Próximos"  items={upcoming} type="upcoming" color="text-purple-600" />
-      <Section title="Enviados"  items={sent}     type="sent"     color="text-gray-400" />
+      <Section title="Vencidos"  items={overdue}  type="overdue"  color="text-red-500" />
+      <Section title="Próximos"  items={upcoming} type="upcoming" color="text-[#6750A4]" />
+      <Section title="Enviados"  items={sent}     type="sent"     color="text-[#79747E]" />
       {reminders.length === 0 && (
-        <div className="text-center py-24 text-gray-300">
-          <div className="text-6xl mb-3">🔔</div>
-          <p className="text-gray-400 font-medium">Sin recordatorios</p>
-          <p className="text-sm mt-1">Añade uno desde una nota</p>
+        <div className="text-center py-24">
+          <div className="text-6xl mb-4">🔔</div>
+          <p className="font-semibold text-[#49454F] text-[16px]">Sin recordatorios</p>
+          <p className="text-[#79747E] text-sm mt-1">Añade uno desde una nota</p>
         </div>
       )}
     </div>
   );
 }
 
+// ─── BOTTOM NAV ───────────────────────────────────────────────────────────────
 function BottomNav({ view, onChange }) {
   const tabs = [
     { id: 'home',      label: 'Notas',         icon: Icons.note },
@@ -442,44 +528,56 @@ function BottomNav({ view, onChange }) {
     { id: 'tags',      label: 'Etiquetas',     icon: Icons.tag  },
   ];
   return (
-    <div className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white/90 backdrop-blur-md border-t border-gray-100 flex">
+    <div className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white/95 backdrop-blur-xl border-t border-[#E8DEF8] flex"
+      style={{ boxShadow: '0 -4px 20px rgba(103,80,164,0.08)' }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => onChange(t.id)}
-          className={`flex-1 flex flex-col items-center py-3 gap-1 transition-colors ${view === t.id ? 'text-[#6750A4]' : 'text-gray-400'}`}>
-          <div className={`px-4 py-1 rounded-full transition-all ${view === t.id ? 'bg-[#EDE7F6]' : ''}`}>
-            <Icon d={t.icon} size="w-5 h-5" />
+          className="flex-1 flex flex-col items-center py-2.5 gap-1 transition-colors">
+          <div className={`flex items-center justify-center px-5 py-1.5 rounded-full transition-all duration-200
+            ${view === t.id ? 'bg-[#EDE7F6]' : ''}`}>
+            <Icon d={t.icon} size="w-5 h-5"
+              color={view === t.id ? 'text-[#6750A4]' : 'text-[#79747E]'} />
           </div>
-          <span className="text-[11px] font-medium">{t.label}</span>
+          <span className={`text-[11px] font-semibold transition-colors
+            ${view === t.id ? 'text-[#6750A4]' : 'text-[#79747E]'}`}>
+            {t.label}
+          </span>
         </button>
       ))}
     </div>
   );
 }
 
+// ─── PUSH BANNER ──────────────────────────────────────────────────────────────
 function PushBanner({ onEnable, onDismiss }) {
   return (
-    <div className="mx-4 mb-2 bg-[#EDE7F6] rounded-3xl p-4 flex items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-[#6750A4] rounded-2xl flex items-center justify-center text-white flex-shrink-0">
-          <Icon d={Icons.bell} size="w-5 h-5" />
+    <div className="mx-4 mb-3 rounded-[24px] overflow-hidden"
+      style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #6750A4 100%)', boxShadow: '0 4px 20px rgba(103,80,164,0.35)' }}>
+      <div className="p-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <Icon d={Icons.bell} size="w-5 h-5" color="text-white" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-white">Activar notificaciones</p>
+            <p className="text-xs text-white/70">Recibe alertas de tus recordatorios</p>
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-semibold text-[#4a3880]">Activar notificaciones</p>
-          <p className="text-xs text-[#6750A4]">Recibe alertas de recordatorios</p>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button onClick={onDismiss} className="p-1.5 text-white/50 hover:text-white">
+            <Icon d={Icons.close} size="w-4 h-4" />
+          </button>
+          <button onClick={onEnable}
+            className="bg-white text-[#6750A4] text-xs font-bold px-3.5 py-1.5 rounded-full active:scale-95 transition-all">
+            Activar
+          </button>
         </div>
-      </div>
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        <button onClick={onDismiss} className="p-1.5 text-[#6750A4] opacity-50">
-          <Icon d={Icons.close} size="w-4 h-4" />
-        </button>
-        <button onClick={onEnable} className="bg-[#6750A4] text-white text-xs font-bold px-3 py-1.5 rounded-full">
-          Activar
-        </button>
       </div>
     </div>
   );
 }
 
+// ─── APP ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const [view, setView]               = useState('home');
   const [notes, setNotes]             = useState([]);
@@ -563,37 +661,43 @@ export default function App() {
     loadData();
   };
 
+  const viewTitles = { home: '📝 Notas', tags: '🏷️ Etiquetas', reminders: '🔔 Recordatorios' };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#F3EDF7]">
+      <div className="flex items-center justify-center min-h-screen bg-[#F6F0FF]">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-[#6750A4] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-gray-400 text-sm font-medium">Cargando...</p>
+          <p className="text-[#79747E] text-sm font-medium">Cargando...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F3EDF7] flex flex-col max-w-lg mx-auto relative">
-      <div className="px-5 pt-14 pb-3 bg-[#F3EDF7]">
-        <h1 className="text-3xl font-bold text-[#21005D]">
-          {view === 'home' ? '📝 Notas' : view === 'tags' ? '🏷️ Etiquetas' : '🔔 Recordatorios'}
-        </h1>
+    <div className="min-h-screen bg-[#F6F0FF] flex flex-col max-w-lg mx-auto relative">
+      {/* Header */}
+      <div className="px-5 pt-14 pb-4 bg-[#F6F0FF]">
+        <h1 className="text-[28px] font-bold text-[#21005D]">{viewTitles[view]}</h1>
       </div>
 
+      {/* Push banner */}
       {showPushBanner && !pushEnabled && (
         <PushBanner onEnable={handleEnablePush} onDismiss={() => setShowPushBanner(false)} />
       )}
 
-      {view === 'home'      && <HomeView notes={notes} tags={tags} onNoteClick={n => { setEditingNote(n); setShowEditor(true); }} onNewNote={() => { setEditingNote(null); setShowEditor(true); }} />}
+      {view === 'home'      && <HomeView notes={notes} tags={tags}
+        onNoteClick={n => { setEditingNote(n); setShowEditor(true); }}
+        onNewNote={() => { setEditingNote(null); setShowEditor(true); }} />}
       {view === 'tags'      && <TagsView tags={tags} onRefresh={loadData} />}
       {view === 'reminders' && <RemindersView reminders={reminders} notes={notes} />}
 
       <BottomNav view={view} onChange={setView} />
 
       {showEditor && (
-        <NoteEditor note={editingNote} tags={tags} onSave={saveNote} onDelete={deleteNote} onClose={() => setShowEditor(false)} />
+        <NoteEditor note={editingNote} tags={tags}
+          onSave={saveNote} onDelete={deleteNote}
+          onClose={() => setShowEditor(false)} />
       )}
     </div>
   );
