@@ -517,7 +517,11 @@ export default function App() {
   const doSwipeAction = async (action, note) => {
     const op = SWIPE_OPS[action];
     if (!op.toast) return;
-    if (action === 'delete')  { await supabase.from('notes').delete().eq('id', note.id); }
+    if (action === 'delete') {
+      // Usa deleteNote para que tenga undo + soft delete
+      deleteNote(note.id);
+      return;
+    }
     if (action === 'archive') { await supabase.from('notes').update({ archived:true }).eq('id', note.id); }
     if (action === 'pin')     { await supabase.from('notes').update({ pinned:!note.pinned }).eq('id', note.id); }
     showToast(op.toast);
@@ -537,10 +541,11 @@ export default function App() {
     // Eliminación optimista — quitamos de la UI de inmediato
     setNotes(prev => prev.filter(n => n.id !== id));
 
-    // Si había otro pendiente de eliminar, lo confirmamos ahora
+    // Si había otro pendiente de eliminar, lo confirmamos ahora (soft delete)
     if (pendingDel) {
       clearTimeout(pendingDel.timer);
-      supabase.from('notes').delete().eq('id', pendingDel.note.id);
+      supabase.from('notes').update({ deleted_at: new Date().toISOString() }).eq('id', pendingDel.note.id);
+      loadData();
     }
 
     // Timer de 5 seg para confirmar la eliminación (soft delete en BD)
