@@ -149,7 +149,7 @@ function NoteCard({ note, tags, onEdit, onPin, onDelete }) {
           </div>
         )}
       </div>
-      <div style={{ display:'flex', flexDirection:'column', gap:4, flexShrink:0 }} onClick={e=>e.stopPropagation()}>
+      <div style={{ display:'flex', alignItems:'center', flexShrink:0 }} onClick={e=>e.stopPropagation()}>
         <button onClick={() => onDelete(note.id)} style={{ border:'none', background:'none', cursor:'pointer', fontSize:15, padding:2, color:P.textLight, lineHeight:1 }}>🗑️</button>
       </div>
     </div>
