@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Google Sans', 'Roboto', system-ui, sans-serif;
+  background-color: #F3EDF7;
+  overscroll-behavior: none;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.4);
+}
