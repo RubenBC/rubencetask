@@ -230,7 +230,7 @@ function NoteEditor({ note, tags, onSave, onClose }) {
 }
 
 // ─── TOOLS TAB ───────────────────────────────────────────────────────────────
-function ToolsTab({ tags, onRefreshTags, swipeLeft, setSwipeLeft, swipeRight, setSwipeRight, archived, onRestore }) {
+function ToolsTab({ tags, onRefreshTags, swipeLeft, setSwipeLeft, swipeRight, setSwipeRight, archived, onRestore, deleted, onRestoreDeleted, onPermanentDelete, onClearHistory }) {
   const [section,      setSection]     = useState(null);
   const [newName,      setNewName]     = useState('');
   const [newColor,     setNewColor]    = useState(TAG_COLORS[0]);
@@ -378,7 +378,6 @@ function ToolsTab({ tags, onRefreshTags, swipeLeft, setSwipeLeft, swipeRight, se
           </div>
           <Ico d={IC.chevron} s="w-5 h-5" col={P.textLight} />
         </button>
-
         {section === 'archived' && (
           <div style={{ marginTop:16, display:'flex', flexDirection:'column', gap:8 }}>
             {archived.length === 0 ? (
@@ -394,6 +393,61 @@ function ToolsTab({ tags, onRefreshTags, swipeLeft, setSwipeLeft, swipeRight, se
                 </button>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Historial de eliminadas ── */}
+      <div style={CARD}>
+        <button onClick={() => setSection(section==='deleted'?null:'deleted')}
+          style={{ display:'flex', justifyContent:'space-between', alignItems:'center', width:'100%', background:'none', border:'none', cursor:'pointer', padding:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ width:36, height:36, borderRadius:12, backgroundColor:P.errCont, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <Ico d={IC.trash} s="w-5 h-5" col={P.error} />
+            </div>
+            <div style={{ textAlign:'left' }}>
+              <p style={{ fontSize:15, fontWeight:700, color:P.text }}>Eliminadas recientemente</p>
+              <p style={{ fontSize:12, color:P.textMid }}>{deleted.length} nota{deleted.length!==1?'s':''} eliminada{deleted.length!==1?'s':''}</p>
+            </div>
+          </div>
+          <Ico d={IC.chevron} s="w-5 h-5" col={P.textLight} />
+        </button>
+
+        {section === 'deleted' && (
+          <div style={{ marginTop:16 }}>
+            {deleted.length === 0 ? (
+              <p style={{ textAlign:'center', color:P.textLight, fontSize:13, padding:'12px 0' }}>No hay notas eliminadas</p>
+            ) : (
+              <>
+                <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:12 }}>
+                  {deleted.map(n => (
+                    <div key={n.id} style={{ borderRadius:12, backgroundColor:P.surfHigh, overflow:'hidden' }}>
+                      <div style={{ padding:'10px 12px' }}>
+                        <p style={{ fontSize:14, fontWeight:600, color:P.text, marginBottom:2 }}>{n.title || <span style={{ fontStyle:'italic', color:P.textLight }}>Sin título</span>}</p>
+                        {n.content && <p style={{ fontSize:12, color:P.textMid, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{n.content}</p>}
+                        <p style={{ fontSize:11, color:P.textLight, marginTop:4 }}>
+                          Eliminada {new Date(n.deleted_at).toLocaleDateString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
+                        </p>
+                      </div>
+                      <div style={{ display:'flex', borderTop:`1px solid ${P.borderLight}` }}>
+                        <button onClick={() => onRestoreDeleted(n.id)}
+                          style={{ flex:1, padding:'8px', background:'none', border:'none', fontSize:12, fontWeight:700, color:P.primary, cursor:'pointer', fontFamily:'inherit', borderRight:`1px solid ${P.borderLight}` }}>
+                          ↩ Restaurar
+                        </button>
+                        <button onClick={() => onPermanentDelete(n.id)}
+                          style={{ flex:1, padding:'8px', background:'none', border:'none', fontSize:12, fontWeight:700, color:P.error, cursor:'pointer', fontFamily:'inherit' }}>
+                          🗑️ Borrar definitivo
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={onClearHistory}
+                  style={{ width:'100%', padding:'10px', borderRadius:999, border:`1.5px solid ${P.error}`, background:'none', fontSize:13, fontWeight:700, color:P.error, cursor:'pointer', fontFamily:'inherit' }}>
+                  Vaciar historial completo
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -413,16 +467,22 @@ export default function App() {
   const [activeTag,  setActiveTag]  = useState(null);
   const [editor,     setEditor]     = useState(null);
   const [loading,    setLoading]    = useState(true);
-  const [toast,      setToast]      = useState(null);
+  const [toast,      setToast]      = useState(null); // { msg, action?, actionLabel? }
+  const [pendingDel, setPendingDel]  = useState(null); // { note, timer }
   const [pushEnabled,setPushEnabled]= useState(false);
   const [showPushBanner,setShowPushBanner] = useState(false);
 
-  const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2200); };
+  const showToast = (msg, opts = {}) => {
+    setToast({ msg, ...opts });
+    if (!opts.action) setTimeout(() => setToast(null), 2200);
+  };
+
+  const hideToast = () => setToast(null);
 
   // ── Cargar datos ──
   const loadData = async () => {
     const [{ data:notesRaw }, { data:tagsRaw }, { data:remindersRaw }, { data:noteTagsRaw }] = await Promise.all([
-      supabase.from('notes').select('*').order('pinned', { ascending:false }).order('updated_at', { ascending:false }),
+      supabase.from('notes').select('*').order('deleted_at', { ascending:false }).order('pinned', { ascending:false }).order('updated_at', { ascending:false }),
       supabase.from('tags').select('*').order('name'),
       supabase.from('reminders').select('*').order('scheduled_at'),
       supabase.from('note_tags').select('*'),
@@ -470,16 +530,55 @@ export default function App() {
     loadData();
   };
 
-  const deleteNote = async id => {
-    if (!confirm('¿Eliminar esta nota?')) return;
-    await supabase.from('notes').delete().eq('id', id);
-    showToast('🗑️ Nota eliminada');
+  const deleteNote = (id) => {
+    const note = notes.find(n => n.id === id);
+    if (!note) return;
+
+    // Eliminación optimista — quitamos de la UI de inmediato
+    setNotes(prev => prev.filter(n => n.id !== id));
+
+    // Si había otro pendiente de eliminar, lo confirmamos ahora
+    if (pendingDel) {
+      clearTimeout(pendingDel.timer);
+      supabase.from('notes').delete().eq('id', pendingDel.note.id);
+    }
+
+    // Timer de 5 seg para confirmar la eliminación (soft delete en BD)
+    const timer = setTimeout(async () => {
+      await supabase.from('notes').update({ deleted_at: new Date().toISOString() }).eq('id', note.id);
+      setPendingDel(null);
+      hideToast();
+      loadData();
+    }, 5000);
+
+    setPendingDel({ note, timer });
+
+    showToast('🗑️ Nota eliminada', {
+      actionLabel: 'Deshacer',
+      action: () => {
+        clearTimeout(timer);
+        setNotes(prev => [note, ...prev]);
+        setPendingDel(null);
+        hideToast();
+      },
+    });
+  };
+
+  const restoreNote = async (id, fromDeleted = false) => {
+    await supabase.from('notes').update({ archived:false, deleted_at:null }).eq('id', id);
+    showToast('✅ Nota restaurada');
     loadData();
   };
 
-  const restoreNote = async id => {
-    await supabase.from('notes').update({ archived:false }).eq('id', id);
-    showToast('✅ Nota restaurada');
+  const permanentDelete = async (id) => {
+    await supabase.from('notes').delete().eq('id', id);
+    showToast('🗑️ Eliminada permanentemente');
+    loadData();
+  };
+
+  const clearHistory = async () => {
+    await supabase.from('notes').delete().not('deleted_at', 'is', null);
+    showToast('🧹 Historial borrado');
     loadData();
   };
 
@@ -520,8 +619,9 @@ export default function App() {
   };
 
   // ── Filtros ──
-  const active   = notes.filter(n => !n.archived);
-  const archived = notes.filter(n =>  n.archived);
+  const active   = notes.filter(n => !n.archived && !n.deleted_at);
+  const archived = notes.filter(n =>  n.archived && !n.deleted_at);
+  const deleted  = notes.filter(n =>  n.deleted_at).sort((a,b) => new Date(b.deleted_at)-new Date(a.deleted_at));
 
   const visible = active.filter(n => {
     const mt = !search || n.title?.toLowerCase().includes(search.toLowerCase()) || n.content?.toLowerCase().includes(search.toLowerCase());
@@ -560,9 +660,15 @@ export default function App() {
 
       {/* ── Toast ── */}
       {toast && (
-        <div style={{ position:'fixed', top:16, left:0, right:0, maxWidth:520, margin:'0 auto', display:'flex', justifyContent:'center', zIndex:200, pointerEvents:'none' }}>
-          <div style={{ backgroundColor:P.onPCont, color:P.pCont, padding:'10px 20px', borderRadius:999, fontSize:13, fontWeight:600, boxShadow:'0 4px 20px rgba(0,0,0,.2)' }}>
-            {toast}
+        <div style={{ position:'fixed', bottom:96, left:0, right:0, maxWidth:520, margin:'0 auto', display:'flex', justifyContent:'center', zIndex:200, padding:'0 16px' }}>
+          <div style={{ backgroundColor:P.onPCont, color:P.pCont, padding:'12px 16px', borderRadius:16, fontSize:13, fontWeight:600, boxShadow:'0 4px 24px rgba(0,0,0,.25)', display:'flex', alignItems:'center', gap:12, width:'100%', maxWidth:400 }}>
+            <span style={{ flex:1 }}>{toast.msg}</span>
+            {toast.action && (
+              <button onClick={toast.action}
+                style={{ background:'none', border:`1.5px solid ${P.pCont}`, color:P.pCont, borderRadius:999, padding:'4px 14px', fontSize:13, fontWeight:800, cursor:'pointer', flexShrink:0, fontFamily:'inherit', letterSpacing:.3 }}>
+                {toast.actionLabel}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -716,6 +822,7 @@ export default function App() {
           swipeLeft={swipeLeft} setSwipeLeft={setSwipeLeft}
           swipeRight={swipeRight} setSwipeRight={setSwipeRight}
           archived={archived} onRestore={restoreNote}
+          deleted={deleted} onRestoreDeleted={restoreNote} onPermanentDelete={permanentDelete} onClearHistory={clearHistory}
         />
       )}
 
