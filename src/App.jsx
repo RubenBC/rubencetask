@@ -1,607 +1,440 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { subscribeToPush, checkSubscription } from './lib/push';
 
-// ─── ICONS ───────────────────────────────────────────────────────────────────
-const Icon = ({ d, size = 'w-5 h-5', color }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={`${size} ${color || ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />
+// ─── ICONOS ──────────────────────────────────────────────────────────────────
+const Ico = ({ d, s = 'w-5 h-5', col }) => (
+  <svg className={s} viewBox="0 0 24 24" fill="none" stroke={col || 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d={d} />
   </svg>
 );
-
-const Icons = {
-  search: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
-  close:  'M6 18L18 6M6 6l12 12',
-  plus:   'M12 4v16m8-8H4',
-  back:   'M15 19l-7-7 7-7',
-  delete: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
-  edit:   'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
-  pin:    'M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z',
-  bell:   'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
-  tag:    'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-5 5a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z',
-  note:   'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+const IC = {
+  search:  'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+  x:       'M6 18L18 6M6 6l12 12',
+  plus:    'M12 4v16m8-8H4',
+  bell:    'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
+  pin:     'M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z',
+  trash:   'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
+  archive: 'M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4',
+  note:    'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+  tools:   'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
+  tag:     'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-5 5a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z',
+  edit:    'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
+  swipe:   'M7 16l-4-4m0 0l4-4m-4 4h18',
+  restore: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
+  chevron: 'M19 9l-7 7-7-7',
 };
 
-// ─── CONSTANTS ───────────────────────────────────────────────────────────────
-const NOTE_COLORS = [
-  { label: 'Blanco',   value: '#FFFFFF' },
-  { label: 'Lavanda',  value: '#EDE7F6' },
-  { label: 'Rosa',     value: '#FCE4EC' },
-  { label: 'Cielo',    value: '#E1F5FE' },
-  { label: 'Menta',    value: '#E8F5E9' },
-  { label: 'Miel',     value: '#FFF8E1' },
-  { label: 'Melocotón',value: '#FBE9E7' },
-  { label: 'Lila',     value: '#F3E5F5' },
-];
-
-const TAG_COLORS = [
-  '#6750A4','#B5179E','#4361EE','#0096C7',
-  '#06D6A0','#FFB703','#FB8500','#EF233C',
-];
-
-const fmt = (d) => {
-  if (!d) return '';
-  return new Date(d).toLocaleDateString('es-ES', {
-    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
-  });
+// ─── PALETA ──────────────────────────────────────────────────────────────────
+const P = {
+  gradA:'#92400E', gradB:'#D97706',
+  primary:'#B45309', primaryDark:'#92400E',
+  pCont:'#FFDEA8', onPCont:'#271900',
+  secondary:'#6F5B40', secCont:'#FBE0BC',
+  bg:'#FFFBF0', card:'#FFFFFF',
+  surfHigh:'#F7EDD9',
+  text:'#1F1B13', textMid:'#78716C', textLight:'#A8A29E',
+  border:'#E8D5B0', borderLight:'#F0DDBC',
+  error:'#BA1A1A', errCont:'#FFDAD6',
+  success:'#1A6B4A', sucCont:'#DCFCE7',
 };
-const isOverdue = (d) => d && new Date(d) < new Date();
 
-// ─── TAG CHIP ─────────────────────────────────────────────────────────────────
-function TagChip({ tag, selected, onClick, small }) {
+// ─── NOTA COLORES ────────────────────────────────────────────────────────────
+const NOTE_COLORS = ['#FFFFFF','#FFF3D6','#FCE4EC','#E1F5FE','#E8F5E9','#FFF8E1','#F3E5F5','#FBE9E7'];
+
+// ─── TAG COLORS ──────────────────────────────────────────────────────────────
+const TAG_COLORS = ['#B45309','#1B6584','#1A6B4A','#BA1A1A','#7C3AED','#0096C7','#D97706','#374151'];
+const tagStyle = (color) => ({ bg: color + '22', text: color });
+
+// ─── ACCIONES SWIPE ──────────────────────────────────────────────────────────
+const SWIPE_OPS = {
+  delete:  { label:'Eliminar',         icon:IC.trash,   bg:P.error,   text:'#fff', toast:'🗑️ Nota eliminada' },
+  archive: { label:'Archivar',         icon:IC.archive, bg:P.success, text:'#fff', toast:'📦 Nota archivada' },
+  pin:     { label:'Fijar / Desfijar', icon:IC.pin,     bg:P.primary, text:'#fff', toast:'📌 Nota fijada/desfijada' },
+  none:    { label:'Ninguna',          icon:IC.x,       bg:P.textLight,text:'#fff',toast:null },
+};
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+const fmt  = d => new Date(d).toLocaleDateString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+const over = d => d && new Date(d) < new Date();
+const uid  = () => Math.random().toString(36).slice(2);
+const SWIPE_T = 72;
+
+// ─── SWIPEABLE ───────────────────────────────────────────────────────────────
+function Swipeable({ onLeft, onRight, leftOp, rightOp, children }) {
+  const [dx, setDx]   = useState(0);
+  const [exit, setExit] = useState(null);
+  const sx = useRef(0), drag = useRef(false);
+
+  const ts = e => { sx.current = e.touches[0].clientX; drag.current = true; };
+  const tm = e => { if (!drag.current) return; setDx(Math.max(-180, Math.min(180, e.touches[0].clientX - sx.current))); };
+  const te = () => {
+    drag.current = false;
+    if      (dx < -SWIPE_T && leftOp  !== 'none') { setExit('l'); setTimeout(onLeft,  300); }
+    else if (dx >  SWIPE_T && rightOp !== 'none') { setExit('r'); setTimeout(onRight, 300); }
+    else setDx(0);
+  };
+
+  const prog = Math.min(1, Math.abs(dx) / SWIPE_T);
+  const lop  = SWIPE_OPS[leftOp  || 'delete'];
+  const rop  = SWIPE_OPS[rightOp || 'archive'];
+
   return (
-    <button
-      onClick={onClick}
-      className={`inline-flex items-center rounded-full font-medium whitespace-nowrap transition-all
-        ${small ? 'text-[11px] px-2 py-0.5' : 'text-[13px] px-3.5 py-1.5'}
-        ${selected ? 'shadow-sm scale-[1.03]' : 'opacity-80 hover:opacity-100'}`}
-      style={{
-        backgroundColor: selected ? tag.color : tag.color + '22',
-        color: selected ? '#fff' : tag.color,
-        border: `1.5px solid ${tag.color}${selected ? '' : '66'}`,
-      }}
-    >
-      {tag.name}
-    </button>
-  );
-}
-
-// ─── NOTE CARD ────────────────────────────────────────────────────────────────
-function NoteCard({ note, tags, onClick }) {
-  const noteTags = tags.filter(t => note.tag_ids?.includes(t.id));
-  const reminder = note.reminder;
-  const hasColor = note.color && note.color !== '#FFFFFF';
-
-  return (
-    <div
-      onClick={() => onClick(note)}
-      className="w-full rounded-[28px] overflow-hidden cursor-pointer transition-all duration-200 active:scale-[0.98]"
-      style={{
-        backgroundColor: note.color || '#FFFFFF',
-        boxShadow: hasColor
-          ? '0 2px 16px rgba(103,80,164,0.10)'
-          : '0 2px 16px rgba(103,80,164,0.07)',
-      }}
-    >
-      {/* Top accent bar */}
-      <div
-        className="h-1 w-full"
-        style={{ backgroundColor: hasColor ? note.color : '#EDE7F6', filter: 'brightness(0.85)' }}
-      />
-
-      <div className="px-5 pt-4 pb-4">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex-1 min-w-0">
-            {note.title ? (
-              <h3 className="font-bold text-[#1C1B1F] text-[18px] leading-snug truncate">{note.title}</h3>
-            ) : (
-              <h3 className="font-medium text-[#79747E] text-[16px] italic">Sin título</h3>
-            )}
-          </div>
-          {note.pinned && (
-            <div className="flex-shrink-0 mt-0.5">
-              <Icon d={Icons.pin} size="w-4 h-4" color="text-[#6750A4] opacity-60" />
-            </div>
-          )}
+    <div style={{ position:'relative', overflow:'hidden', borderRadius:20 }}>
+      <div style={{ position:'absolute', inset:0, borderRadius:20, backgroundColor:lop.bg, display:'flex', alignItems:'center', justifyContent:'flex-end', paddingRight:20, opacity:dx<0?prog:0 }}>
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+          <Ico d={lop.icon} s="w-6 h-6" col="#fff" />
+          <span style={{ color:'#fff', fontSize:10, fontWeight:700 }}>{lop.label.toUpperCase()}</span>
         </div>
-
-        {/* Content */}
-        {note.content && (
-          <p className="text-[#49454F] text-[14px] leading-relaxed line-clamp-3">{note.content}</p>
-        )}
-
-        {/* Footer */}
-        {(reminder || noteTags.length > 0) && (
-          <div className="flex flex-wrap items-center gap-1.5 mt-3">
-            {reminder && !reminder.sent && (
-              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full
-                ${isOverdue(reminder.scheduled_at)
-                  ? 'bg-red-100 text-red-600'
-                  : 'bg-[#6750A4]/10 text-[#6750A4]'}`}
-              >
-                <Icon d={Icons.bell} size="w-3 h-3" />
-                {fmt(reminder.scheduled_at)}
-              </span>
-            )}
-            {noteTags.map(t => <TagChip key={t.id} tag={t} selected small />)}
-          </div>
-        )}
+      </div>
+      <div style={{ position:'absolute', inset:0, borderRadius:20, backgroundColor:rop.bg, display:'flex', alignItems:'center', paddingLeft:20, opacity:dx>0?prog:0 }}>
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+          <Ico d={rop.icon} s="w-6 h-6" col="#fff" />
+          <span style={{ color:'#fff', fontSize:10, fontWeight:700 }}>{rop.label.toUpperCase()}</span>
+        </div>
+      </div>
+      <div onTouchStart={ts} onTouchMove={tm} onTouchEnd={te}
+        style={{ transform: exit==='l'?'translateX(-110%)':exit==='r'?'translateX(110%)':`translateX(${dx}px)`, transition:drag.current?'none':'transform .28s cubic-bezier(.4,0,.2,1)', willChange:'transform' }}>
+        {children}
       </div>
     </div>
   );
 }
 
-// ─── NOTE EDITOR ──────────────────────────────────────────────────────────────
-function NoteEditor({ note, tags, onSave, onDelete, onClose }) {
+// ─── NOTE CARD ───────────────────────────────────────────────────────────────
+function NoteCard({ note, tags, onEdit, onPin, onDelete }) {
+  const ntags = tags.filter(t => note.tag_ids?.includes(t.id));
+  const first = ntags[0];
+  const ts    = tagStyle(first?.color || P.border);
+
+  return (
+    <div onClick={() => onEdit(note)}
+      style={{ backgroundColor:note.color||P.card, borderRadius:20, padding:'13px 14px', display:'flex', gap:11, boxShadow:'0 1px 6px rgba(0,0,0,.07)', border:`2px solid ${note.pinned?'#FCD34D':P.borderLight}`, cursor:'pointer', transition:'box-shadow .2s' }}>
+      <div style={{ width:4, borderRadius:4, flexShrink:0, backgroundColor:first?.color||P.borderLight, alignSelf:'stretch' }} />
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8, marginBottom:4 }}>
+          <div style={{ flex:1, minWidth:0 }}>
+            {note.pinned && <span style={{ fontSize:11, color:P.primary, fontWeight:700, marginRight:5 }}>📌</span>}
+            <span style={{ fontSize:15, fontWeight:700, color:P.text, lineHeight:1.4 }}>
+              {note.title || <span style={{ color:P.textLight, fontStyle:'italic', fontWeight:400 }}>Sin título</span>}
+            </span>
+          </div>
+          {first && (
+            <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:999, backgroundColor:ts.bg, color:ts.text, flexShrink:0, border:`1px solid ${first.color}44` }}>
+              {first.name.toUpperCase()}
+            </span>
+          )}
+        </div>
+        {note.content && (
+          <p style={{ fontSize:13, color:P.textMid, lineHeight:1.5, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', marginBottom:ntags.length||note.reminder?6:0 }}>
+            {note.content}
+          </p>
+        )}
+        {(note.reminder || ntags.length > 0) && (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:5, alignItems:'center' }}>
+            {note.reminder && (
+              <span style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, fontWeight:500, padding:'2px 8px', borderRadius:999, backgroundColor:over(note.reminder)?P.errCont:P.pCont, color:over(note.reminder)?P.error:P.primaryDark }}>
+                {over(note.reminder)?'⚠️ ':'🔔 '}{fmt(note.reminder)}
+              </span>
+            )}
+            {ntags.slice(1).map(t => {
+              const ts2 = tagStyle(t.color);
+              return (
+                <span key={t.id} style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:999, backgroundColor:ts2.bg, color:ts2.text }}>
+                  <span style={{ width:6, height:6, borderRadius:'50%', backgroundColor:t.color, display:'inline-block' }} />
+                  {t.name}
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:4, flexShrink:0 }} onClick={e=>e.stopPropagation()}>
+        <button onClick={() => onPin(note.id)} style={{ border:'none', background:'none', cursor:'pointer', fontSize:15, padding:2, color:note.pinned?P.primary:P.textLight, lineHeight:1 }}>📌</button>
+        <button onClick={() => onDelete(note.id)} style={{ border:'none', background:'none', cursor:'pointer', fontSize:15, padding:2, color:P.textLight, lineHeight:1 }}>🗑️</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── NOTE EDITOR ─────────────────────────────────────────────────────────────
+function NoteEditor({ note, tags, onSave, onClose }) {
   const isNew = !note?.id;
-  const [title, setTitle]               = useState(note?.title || '');
-  const [content, setContent]           = useState(note?.content || '');
-  const [color, setColor]               = useState(note?.color || '#FFFFFF');
-  const [pinned, setPinned]             = useState(note?.pinned || false);
-  const [selTags, setSelTags]           = useState(note?.tag_ids || []);
-  const [showReminder, setShowReminder] = useState(false);
-  const [remDate, setRemDate]           = useState('');
-  const [remTitle, setRemTitle]         = useState('');
-  const [saving, setSaving]             = useState(false);
+  const [title,   setTitle]   = useState(note?.title   || '');
+  const [content, setContent] = useState(note?.content || '');
+  const [color,   setColor]   = useState(note?.color   || '#FFFFFF');
+  const [tagIds,  setTagIds]  = useState(note?.tag_ids || []);
+  const [rem,     setRem]     = useState(() => {
+    if (!note?.reminder) return '';
+    const d = new Date(note.reminder);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  });
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (note?.reminder && !note.reminder.sent) {
-      setShowReminder(true);
-      const d = new Date(note.reminder.scheduled_at);
-      setRemDate(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
-      setRemTitle(note.reminder.title || '');
-    }
-  }, []);
-
-  const toggleTag = (id) =>
-    setSelTags(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const tog = id => setTagIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
 
   const handleSave = async () => {
     if (!title.trim() && !content.trim()) return;
     setSaving(true);
     await onSave({
-      id: note?.id, title: title.trim(), content: content.trim(),
-      color, pinned, tag_ids: selTags,
-      reminder: showReminder && remDate
-        ? { id: note?.reminder?.id, title: remTitle || title || 'Recordatorio', scheduled_at: new Date(remDate).toISOString() }
-        : null,
+      id: note?.id,
+      title: title.trim(),
+      content: content.trim(),
+      color,
+      tag_ids: tagIds,
+      reminder: rem ? new Date(rem).toISOString() : null,
     });
     setSaving(false);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: color }}>
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-3 pt-12 pb-2">
-        <button onClick={onClose} className="p-2.5 rounded-full hover:bg-black/8 transition-colors">
-          <Icon d={Icons.back} size="w-6 h-6" />
-        </button>
-        <div className="flex items-center gap-1">
-          <button onClick={() => setPinned(!pinned)}
-            className={`p-2.5 rounded-full transition-colors ${pinned ? 'text-[#6750A4] bg-[#EDE7F6]' : 'hover:bg-black/8'}`}>
-            <Icon d={Icons.pin} size="w-5 h-5" />
-          </button>
-          {!isNew && (
-            <button onClick={() => onDelete(note.id)}
-              className="p-2.5 rounded-full hover:bg-red-50 text-red-400 transition-colors">
-              <Icon d={Icons.delete} size="w-5 h-5" />
-            </button>
-          )}
-          <button onClick={handleSave}
-            disabled={saving || (!title.trim() && !content.trim())}
-            className="bg-[#6750A4] text-white px-5 py-2 rounded-full text-sm font-semibold ml-1 disabled:opacity-40 active:scale-95 transition-all"
-            style={{ boxShadow: '0 2px 10px rgba(103,80,164,0.35)' }}>
+    <div style={{ position:'fixed', inset:0, zIndex:50, backgroundColor:'rgba(0,0,0,.5)', display:'flex', alignItems:'flex-end' }} onClick={onClose}>
+      <div style={{ width:'100%', maxWidth:520, margin:'0 auto', backgroundColor:color||'#fff', borderRadius:'28px 28px 0 0', padding:'20px 20px 36px', maxHeight:'92vh', overflowY:'auto' }} onClick={e=>e.stopPropagation()}>
+        <div style={{ width:36, height:4, borderRadius:2, backgroundColor:P.border, margin:'0 auto 20px' }} />
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+          <h2 style={{ fontSize:18, fontWeight:800, color:P.text }}>{isNew ? 'Nueva nota' : 'Editar nota'}</h2>
+          <button onClick={handleSave} disabled={saving || (!title.trim() && !content.trim())}
+            style={{ backgroundColor:P.primary, color:'#fff', border:'none', borderRadius:999, padding:'8px 20px', fontSize:14, fontWeight:700, cursor:'pointer', opacity:(!title.trim()&&!content.trim())?0.4:1 }}>
             {saving ? '...' : 'Guardar'}
           </button>
         </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-5 pb-10 space-y-5">
-        <input value={title} onChange={e => setTitle(e.target.value)}
-          placeholder="Título"
-          className="w-full text-[26px] font-bold bg-transparent border-none outline-none text-[#1C1B1F] placeholder-[#C4C7C5]" />
-        <textarea value={content} onChange={e => setContent(e.target.value)}
-          placeholder="Escribe tu nota..." rows={7}
-          className="w-full text-[15px] bg-transparent border-none outline-none text-[#49454F] placeholder-[#C4C7C5] resize-none leading-relaxed" />
-
-        {/* Color picker */}
-        <div>
-          <p className="text-[11px] font-bold text-[#79747E] uppercase tracking-widest mb-3">Color de nota</p>
-          <div className="flex gap-3 flex-wrap">
-            {NOTE_COLORS.map(({ value }) => (
-              <button key={value} onClick={() => setColor(value)}
-                className="w-9 h-9 rounded-full border-2 transition-all"
-                style={{
-                  backgroundColor: value,
-                  borderColor: color === value ? '#6750A4' : '#E8DEF8',
-                  transform: color === value ? 'scale(1.25)' : 'scale(1)',
-                  boxShadow: color === value ? '0 0 0 3px #EDE7F6' : '0 1px 3px rgba(0,0,0,0.1)',
-                }} />
-            ))}
-          </div>
+        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Título"
+          style={{ width:'100%', fontSize:20, fontWeight:700, border:'none', outline:'none', backgroundColor:'transparent', color:P.text, marginBottom:10, fontFamily:'inherit' }} />
+        <textarea value={content} onChange={e=>setContent(e.target.value)} placeholder="Escribe tu nota..." rows={5}
+          style={{ width:'100%', fontSize:14, border:'none', outline:'none', backgroundColor:'transparent', color:P.textMid, resize:'none', lineHeight:1.6, marginBottom:16, fontFamily:'inherit' }} />
+        <p style={{ fontSize:11, fontWeight:700, color:P.textLight, textTransform:'uppercase', letterSpacing:1, marginBottom:8 }}>Color</p>
+        <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+          {NOTE_COLORS.map(c => (
+            <button key={c} onClick={() => setColor(c)} style={{ width:28, height:28, borderRadius:'50%', backgroundColor:c, border:`2px solid ${color===c?P.primary:P.border}`, cursor:'pointer', transform:color===c?'scale(1.25)':'scale(1)', transition:'all .15s', flexShrink:0 }} />
+          ))}
         </div>
-
-        {/* Tags */}
         {tags.length > 0 && (
-          <div>
-            <p className="text-[11px] font-bold text-[#79747E] uppercase tracking-widest mb-3">Etiquetas</p>
-            <div className="flex flex-wrap gap-2">
-              {tags.map(t => (
-                <TagChip key={t.id} tag={t} selected={selTags.includes(t.id)} onClick={() => toggleTag(t.id)} />
-              ))}
+          <>
+            <p style={{ fontSize:11, fontWeight:700, color:P.textLight, textTransform:'uppercase', letterSpacing:1, marginBottom:8 }}>Etiquetas</p>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:16 }}>
+              {tags.map(t => {
+                const sel = tagIds.includes(t.id);
+                return (
+                  <button key={t.id} onClick={() => tog(t.id)}
+                    style={{ padding:'5px 12px', borderRadius:999, fontSize:12, fontWeight:600, cursor:'pointer', backgroundColor:sel?t.color:(t.color+'22'), color:sel?'#fff':t.color, border:`2px solid ${sel?t.color:'transparent'}`, fontFamily:'inherit' }}>
+                    {t.name}
+                  </button>
+                );
+              })}
             </div>
-          </div>
+          </>
         )}
-
-        {/* Reminder */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[11px] font-bold text-[#79747E] uppercase tracking-widest">Recordatorio</p>
-            <button onClick={() => setShowReminder(!showReminder)}
-              className={`p-2 rounded-full transition-colors ${showReminder ? 'bg-[#EDE7F6] text-[#6750A4]' : 'text-[#79747E] hover:bg-black/8'}`}>
-              <Icon d={Icons.bell} size="w-5 h-5" />
-            </button>
-          </div>
-          {showReminder && (
-            <div className="space-y-2.5">
-              <input type="text" value={remTitle} onChange={e => setRemTitle(e.target.value)}
-                placeholder="Título del recordatorio"
-                className="w-full bg-white/70 border border-[#CAC4D0] rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#6750A4] transition-colors" />
-              <input type="datetime-local" value={remDate} onChange={e => setRemDate(e.target.value)}
-                className="w-full bg-white/70 border border-[#CAC4D0] rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#6750A4] transition-colors" />
-            </div>
-          )}
-        </div>
+        <p style={{ fontSize:11, fontWeight:700, color:P.textLight, textTransform:'uppercase', letterSpacing:1, marginBottom:8 }}>Recordatorio</p>
+        <input type="datetime-local" value={rem} onChange={e=>setRem(e.target.value)}
+          style={{ width:'100%', padding:'10px 14px', borderRadius:12, border:`1.5px solid ${P.border}`, fontSize:14, color:P.text, outline:'none', backgroundColor:P.surfHigh, fontFamily:'inherit' }} />
       </div>
     </div>
   );
 }
 
-// ─── HOME VIEW ────────────────────────────────────────────────────────────────
-function HomeView({ notes, tags, onNoteClick, onNewNote }) {
-  const [search, setSearch] = useState('');
-  const [activeTag, setActiveTag] = useState(null);
+// ─── TOOLS TAB ───────────────────────────────────────────────────────────────
+function ToolsTab({ tags, onRefreshTags, swipeLeft, setSwipeLeft, swipeRight, setSwipeRight, archived, onRestore }) {
+  const [section,      setSection]     = useState(null);
+  const [newName,      setNewName]     = useState('');
+  const [newColor,     setNewColor]    = useState(TAG_COLORS[0]);
+  const [editTag,      setEditTag]     = useState(null);
+  const [loading,      setLoading]     = useState(false);
 
-  const filtered = notes.filter(n => {
-    const matchText = !search ||
-      n.title?.toLowerCase().includes(search.toLowerCase()) ||
-      n.content?.toLowerCase().includes(search.toLowerCase());
-    const matchTag = !activeTag || n.tag_ids?.includes(activeTag);
-    return matchText && matchTag;
-  });
+  const saveTag = async () => {
+    if (!newName.trim()) return;
+    setLoading(true);
+    if (editTag) {
+      await supabase.from('tags').update({ name:newName.trim(), color:newColor }).eq('id', editTag.id);
+      setEditTag(null);
+    } else {
+      await supabase.from('tags').insert({ name:newName.trim(), color:newColor });
+    }
+    setNewName(''); setNewColor(TAG_COLORS[0]);
+    setLoading(false); onRefreshTags();
+  };
 
-  const pinned   = filtered.filter(n => n.pinned);
-  const unpinned = filtered.filter(n => !n.pinned);
+  const delTag = async (tag) => {
+    if (!confirm(`¿Eliminar etiqueta "${tag.name}"?`)) return;
+    await supabase.from('tags').delete().eq('id', tag.id);
+    onRefreshTags();
+  };
+
+  const startEdit = (tag) => { setEditTag(tag); setNewName(tag.name); setNewColor(tag.color); };
+
+  const updateSwipe = (dir, val) => {
+    if (dir === 'left')  { setSwipeLeft(val);  localStorage.setItem('swipeLeft',  val); }
+    if (dir === 'right') { setSwipeRight(val); localStorage.setItem('swipeRight', val); }
+  };
+
+  const CARD = { backgroundColor:P.card, borderRadius:20, padding:16, marginBottom:10, boxShadow:'0 1px 6px rgba(0,0,0,.07)', border:`1px solid ${P.borderLight}` };
 
   return (
-    <div className="flex-1 overflow-y-auto pb-32">
-      {/* Search bar */}
-      <div className="px-4 pb-3">
-        <div className="flex items-center gap-3 bg-white rounded-2xl px-4 py-3.5"
-          style={{ boxShadow: '0 2px 12px rgba(103,80,164,0.10)' }}>
-          <Icon d={Icons.search} color="text-[#79747E]" />
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar notas..."
-            className="flex-1 bg-transparent outline-none text-[#1C1B1F] text-[15px] placeholder-[#79747E]" />
-          {search && (
-            <button onClick={() => setSearch('')} className="text-[#79747E]">
-              <Icon d={Icons.close} size="w-4 h-4" />
-            </button>
-          )}
-        </div>
+    <div style={{ flex:1, overflowY:'auto', padding:'0 16px 120px' }}>
+
+      {/* ── Etiquetas ── */}
+      <div style={CARD}>
+        <button onClick={() => setSection(section==='tags'?null:'tags')}
+          style={{ display:'flex', justifyContent:'space-between', alignItems:'center', width:'100%', background:'none', border:'none', cursor:'pointer', padding:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ width:36, height:36, borderRadius:12, backgroundColor:P.pCont, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <Ico d={IC.tag} s="w-5 h-5" col={P.primaryDark} />
+            </div>
+            <div style={{ textAlign:'left' }}>
+              <p style={{ fontSize:15, fontWeight:700, color:P.text }}>Etiquetas</p>
+              <p style={{ fontSize:12, color:P.textMid }}>{tags.length} etiquetas configuradas</p>
+            </div>
+          </div>
+          <Ico d={IC.chevron} s="w-5 h-5" col={P.textLight} />
+        </button>
+
+        {section === 'tags' && (
+          <div style={{ marginTop:16 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
+              {tags.map(t => (
+                <div key={t.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', borderRadius:12, backgroundColor:P.surfHigh }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <div style={{ width:14, height:14, borderRadius:'50%', backgroundColor:t.color }} />
+                    <span style={{ fontSize:14, fontWeight:600, color:P.text }}>{t.name}</span>
+                  </div>
+                  <div style={{ display:'flex', gap:6 }}>
+                    <button onClick={() => startEdit(t)} style={{ border:'none', background:P.pCont, borderRadius:8, padding:'4px 10px', fontSize:12, color:P.primaryDark, cursor:'pointer', fontWeight:600 }}>✏️</button>
+                    <button onClick={() => delTag(t)}    style={{ border:'none', background:P.errCont, borderRadius:8, padding:'4px 10px', fontSize:12, color:P.error, cursor:'pointer', fontWeight:600 }}>🗑️</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize:12, fontWeight:700, color:P.textMid, marginBottom:8 }}>{editTag ? 'Editar etiqueta' : 'Nueva etiqueta'}</p>
+            <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Nombre de la etiqueta"
+              style={{ width:'100%', padding:'10px 14px', borderRadius:12, border:`1.5px solid ${P.border}`, fontSize:14, outline:'none', marginBottom:10, backgroundColor:P.surfHigh, fontFamily:'inherit' }} />
+            <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+              {TAG_COLORS.map(c => (
+                <button key={c} onClick={() => setNewColor(c)} style={{ width:26, height:26, borderRadius:'50%', backgroundColor:c, border:`2px solid ${newColor===c?'#000':'transparent'}`, cursor:'pointer', transform:newColor===c?'scale(1.2)':'scale(1)', flexShrink:0 }} />
+              ))}
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              {editTag && (
+                <button onClick={() => { setEditTag(null); setNewName(''); setNewColor(TAG_COLORS[0]); }}
+                  style={{ flex:1, padding:'10px', borderRadius:999, border:`1.5px solid ${P.border}`, background:'none', fontSize:13, fontWeight:600, color:P.textMid, cursor:'pointer', fontFamily:'inherit' }}>
+                  Cancelar
+                </button>
+              )}
+              <button onClick={saveTag} disabled={!newName.trim() || loading}
+                style={{ flex:1, padding:'10px', borderRadius:999, backgroundColor:P.primary, color:'#fff', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', opacity:newName.trim()?1:.4, fontFamily:'inherit' }}>
+                {editTag ? 'Guardar cambios' : 'Añadir etiqueta'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Horizontal scrollable tags */}
-      {tags.length > 0 && (
-        <div className="pb-4">
-          <div className="flex gap-2 overflow-x-auto no-scrollbar px-4">
-            <button
-              onClick={() => setActiveTag(null)}
-              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-[13px] font-semibold border-2 transition-all
-                ${!activeTag
-                  ? 'bg-[#6750A4] text-white border-[#6750A4]'
-                  : 'bg-white text-[#6750A4] border-[#CAC4D0]'}`}
-            >
-              Todas
-            </button>
-            {tags.map(t => (
-              <div key={t.id} className="flex-shrink-0">
-                <TagChip
-                  tag={t}
-                  selected={activeTag === t.id}
-                  onClick={() => setActiveTag(activeTag === t.id ? null : t.id)}
-                />
+      {/* ── Swipe config ── */}
+      <div style={CARD}>
+        <button onClick={() => setSection(section==='swipe'?null:'swipe')}
+          style={{ display:'flex', justifyContent:'space-between', alignItems:'center', width:'100%', background:'none', border:'none', cursor:'pointer', padding:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ width:36, height:36, borderRadius:12, backgroundColor:P.pCont, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <Ico d={IC.swipe} s="w-5 h-5" col={P.primaryDark} />
+            </div>
+            <div style={{ textAlign:'left' }}>
+              <p style={{ fontSize:15, fontWeight:700, color:P.text }}>Acción al deslizar</p>
+              <p style={{ fontSize:12, color:P.textMid }}>← {SWIPE_OPS[swipeLeft].label} · → {SWIPE_OPS[swipeRight].label}</p>
+            </div>
+          </div>
+          <Ico d={IC.chevron} s="w-5 h-5" col={P.textLight} />
+        </button>
+
+        {section === 'swipe' && (
+          <div style={{ marginTop:16 }}>
+            {[['left','← Deslizar izquierda',swipeLeft],['right','→ Deslizar derecha',swipeRight]].map(([dir,label,val]) => (
+              <div key={dir} style={{ marginBottom:16 }}>
+                <p style={{ fontSize:12, fontWeight:700, color:P.textMid, marginBottom:8 }}>{label}</p>
+                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                  {Object.entries(SWIPE_OPS).map(([key, op]) => (
+                    <button key={key} onClick={() => updateSwipe(dir, key)}
+                      style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:12, border:`2px solid ${val===key?op.bg:P.borderLight}`, backgroundColor:val===key?op.bg+'18':P.surfHigh, cursor:'pointer', transition:'all .15s', fontFamily:'inherit' }}>
+                      <div style={{ width:32, height:32, borderRadius:10, backgroundColor:val===key?op.bg:'#E5E7EB', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                        <Ico d={op.icon} s="w-4 h-4" col={val===key?'#fff':'#9CA3AF'} />
+                      </div>
+                      <span style={{ fontSize:14, fontWeight:600, color:val===key?P.text:P.textMid }}>{op.label}</span>
+                      {val===key && <span style={{ marginLeft:'auto' }}>✓</span>}
+                    </button>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Notes list */}
-      <div className="px-4 flex flex-col gap-3">
-        {pinned.length > 0 && (
-          <>
-            <div className="flex items-center gap-2 px-1 mt-1">
-              <Icon d={Icons.pin} size="w-3.5 h-3.5" color="text-[#79747E]" />
-              <p className="text-[11px] font-bold text-[#79747E] uppercase tracking-widest">Fijadas</p>
-            </div>
-            {pinned.map(n => <NoteCard key={n.id} note={n} tags={tags} onClick={onNoteClick} />)}
-          </>
-        )}
-
-        {unpinned.length > 0 && (
-          <>
-            {pinned.length > 0 && (
-              <p className="text-[11px] font-bold text-[#79747E] uppercase tracking-widest px-1 mt-3">Notas</p>
-            )}
-            {unpinned.map(n => <NoteCard key={n.id} note={n} tags={tags} onClick={onNoteClick} />)}
-          </>
-        )}
-
-        {filtered.length === 0 && (
-          <div className="text-center py-24">
-            <div className="text-6xl mb-4">📝</div>
-            <p className="font-semibold text-[#49454F] text-[16px]">Sin notas</p>
-            <p className="text-[#79747E] text-sm mt-1">Pulsa + para crear una</p>
-          </div>
         )}
       </div>
 
-      {/* FAB */}
-      <button onClick={onNewNote}
-        className="fixed bottom-24 right-5 w-16 h-16 bg-[#6750A4] rounded-[20px] flex items-center justify-center text-white active:scale-95 transition-all"
-        style={{ boxShadow: '0 6px 24px rgba(103,80,164,0.45)' }}>
-        <Icon d={Icons.plus} size="w-7 h-7" />
-      </button>
-    </div>
-  );
-}
-
-// ─── TAGS VIEW ────────────────────────────────────────────────────────────────
-function TagsView({ tags, onRefresh }) {
-  const [name, setName]       = useState('');
-  const [color, setColor]     = useState(TAG_COLORS[0]);
-  const [editing, setEditing] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const save = async () => {
-    if (!name.trim()) return;
-    setLoading(true);
-    if (editing) {
-      await supabase.from('tags').update({ name: name.trim(), color }).eq('id', editing.id);
-    } else {
-      await supabase.from('tags').insert({ name: name.trim(), color });
-    }
-    setName(''); setColor(TAG_COLORS[0]); setEditing(null);
-    setLoading(false); onRefresh();
-  };
-
-  const del = async (tag) => {
-    if (!confirm(`¿Eliminar "${tag.name}"?`)) return;
-    await supabase.from('tags').delete().eq('id', tag.id);
-    onRefresh();
-  };
-
-  const startEdit = (tag) => {
-    setEditing(tag); setName(tag.name); setColor(tag.color);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  return (
-    <div className="flex-1 overflow-y-auto pb-24 px-4">
-      {/* Form */}
-      <div className="bg-white rounded-[28px] p-5 mb-5" style={{ boxShadow: '0 2px 16px rgba(103,80,164,0.08)' }}>
-        <p className="text-sm font-bold text-[#49454F] mb-4">{editing ? 'Editar etiqueta' : 'Nueva etiqueta'}</p>
-        <input value={name} onChange={e => setName(e.target.value)}
-          placeholder="Nombre de la etiqueta"
-          className="w-full border-2 border-[#E8DEF8] rounded-2xl px-4 py-3 text-[15px] outline-none focus:border-[#6750A4] transition-colors mb-4 bg-[#FDFBFF]" />
-
-        <div className="flex gap-3 mb-4">
-          {TAG_COLORS.map(c => (
-            <button key={c} onClick={() => setColor(c)}
-              className="w-8 h-8 rounded-full border-2 transition-all flex-shrink-0"
-              style={{
-                backgroundColor: c,
-                borderColor: color === c ? '#1C1B1F' : 'transparent',
-                transform: color === c ? 'scale(1.2)' : 'scale(1)',
-              }} />
-          ))}
-        </div>
-
-        {name && (
-          <div className="mb-4">
-            <TagChip tag={{ name, color }} selected />
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          {editing && (
-            <button onClick={() => { setEditing(null); setName(''); setColor(TAG_COLORS[0]); }}
-              className="flex-1 py-3 rounded-2xl border-2 border-[#CAC4D0] text-sm font-semibold text-[#49454F] active:scale-95 transition-all">
-              Cancelar
-            </button>
-          )}
-          <button onClick={save} disabled={!name.trim() || loading}
-            className="flex-1 py-3 rounded-2xl bg-[#6750A4] text-white text-sm font-bold disabled:opacity-40 active:scale-95 transition-all"
-            style={{ boxShadow: '0 2px 10px rgba(103,80,164,0.3)' }}>
-            {editing ? 'Guardar' : 'Añadir'}
-          </button>
-        </div>
-      </div>
-
-      {/* Tags list */}
-      <div className="flex flex-col gap-2">
-        {tags.map(tag => (
-          <div key={tag.id} className="bg-white rounded-2xl px-5 py-4 flex items-center justify-between"
-            style={{ boxShadow: '0 1px 8px rgba(103,80,164,0.07)' }}>
-            <div className="flex items-center gap-3">
-              <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
-              <span className="font-semibold text-[#1C1B1F] text-[15px]">{tag.name}</span>
+      {/* ── Archivadas ── */}
+      <div style={CARD}>
+        <button onClick={() => setSection(section==='archived'?null:'archived')}
+          style={{ display:'flex', justifyContent:'space-between', alignItems:'center', width:'100%', background:'none', border:'none', cursor:'pointer', padding:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ width:36, height:36, borderRadius:12, backgroundColor:P.surfHigh, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <Ico d={IC.archive} s="w-5 h-5" col={P.textMid} />
             </div>
-            <div className="flex gap-1">
-              <button onClick={() => startEdit(tag)} className="p-2 rounded-full hover:bg-[#F3EDF7] text-[#79747E] transition-colors">
-                <Icon d={Icons.edit} size="w-4 h-4" />
-              </button>
-              <button onClick={() => del(tag)} className="p-2 rounded-full hover:bg-red-50 text-red-400 transition-colors">
-                <Icon d={Icons.delete} size="w-4 h-4" />
-              </button>
+            <div style={{ textAlign:'left' }}>
+              <p style={{ fontSize:15, fontWeight:700, color:P.text }}>Archivadas</p>
+              <p style={{ fontSize:12, color:P.textMid }}>{archived.length} notas archivadas</p>
             </div>
           </div>
-        ))}
-        {tags.length === 0 && (
-          <div className="text-center py-16">
-            <div className="text-5xl mb-3">🏷️</div>
-            <p className="text-[#49454F] font-semibold">Sin etiquetas</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── REMINDERS VIEW ───────────────────────────────────────────────────────────
-function RemindersView({ reminders, notes }) {
-  const getNote = (id) => notes.find(n => n.id === id);
-  const upcoming = reminders.filter(r => !r.sent && !isOverdue(r.scheduled_at));
-  const overdue  = reminders.filter(r => !r.sent && isOverdue(r.scheduled_at));
-  const sent     = reminders.filter(r => r.sent).slice(0, 15);
-
-  const Item = ({ r, type }) => {
-    const note = getNote(r.note_id);
-    const styles = {
-      overdue:  { bar: '#EF4444', bg: 'bg-white', badge: 'bg-red-50 text-red-500', text: 'text-red-500' },
-      upcoming: { bar: '#6750A4', bg: 'bg-white', badge: 'bg-[#EDE7F6] text-[#6750A4]', text: 'text-[#6750A4]' },
-      sent:     { bar: '#CAC4D0', bg: 'bg-white/60', badge: 'bg-gray-100 text-gray-400', text: 'text-gray-400' },
-    }[type];
-
-    return (
-      <div className={`${styles.bg} rounded-2xl overflow-hidden flex ${type === 'sent' ? 'opacity-60' : ''}`}
-        style={{ boxShadow: '0 1px 8px rgba(103,80,164,0.07)' }}>
-        <div className="w-1 flex-shrink-0" style={{ backgroundColor: styles.bar }} />
-        <div className="flex-1 px-4 py-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-[#1C1B1F] text-[15px] truncate">{r.title}</p>
-              {note && <p className="text-[12px] text-[#79747E] mt-0.5 truncate">📝 {note.title || 'Sin título'}</p>}
-              <p className={`text-[12px] font-semibold mt-1.5 ${styles.text}`}>{fmt(r.scheduled_at)}</p>
-            </div>
-            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${styles.badge}`}>
-              {type === 'sent' ? '✓ Enviado' : type === 'overdue' ? 'Vencido' : 'Próximo'}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const Section = ({ title, items, type, color }) => items.length > 0 ? (
-    <div className="mb-5">
-      <p className={`text-[11px] font-bold uppercase tracking-widest mb-2.5 ${color}`}>{title}</p>
-      <div className="flex flex-col gap-2">
-        {items.map(r => <Item key={r.id} r={r} type={type} />)}
-      </div>
-    </div>
-  ) : null;
-
-  return (
-    <div className="flex-1 overflow-y-auto pb-24 px-4">
-      <Section title="Vencidos"  items={overdue}  type="overdue"  color="text-red-500" />
-      <Section title="Próximos"  items={upcoming} type="upcoming" color="text-[#6750A4]" />
-      <Section title="Enviados"  items={sent}     type="sent"     color="text-[#79747E]" />
-      {reminders.length === 0 && (
-        <div className="text-center py-24">
-          <div className="text-6xl mb-4">🔔</div>
-          <p className="font-semibold text-[#49454F] text-[16px]">Sin recordatorios</p>
-          <p className="text-[#79747E] text-sm mt-1">Añade uno desde una nota</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── BOTTOM NAV ───────────────────────────────────────────────────────────────
-function BottomNav({ view, onChange }) {
-  const tabs = [
-    { id: 'home',      label: 'Notas',         icon: Icons.note },
-    { id: 'reminders', label: 'Recordatorios', icon: Icons.bell },
-    { id: 'tags',      label: 'Etiquetas',     icon: Icons.tag  },
-  ];
-  return (
-    <div className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white/95 backdrop-blur-xl border-t border-[#E8DEF8] flex"
-      style={{ boxShadow: '0 -4px 20px rgba(103,80,164,0.08)' }}>
-      {tabs.map(t => (
-        <button key={t.id} onClick={() => onChange(t.id)}
-          className="flex-1 flex flex-col items-center py-2.5 gap-1 transition-colors">
-          <div className={`flex items-center justify-center px-5 py-1.5 rounded-full transition-all duration-200
-            ${view === t.id ? 'bg-[#EDE7F6]' : ''}`}>
-            <Icon d={t.icon} size="w-5 h-5"
-              color={view === t.id ? 'text-[#6750A4]' : 'text-[#79747E]'} />
-          </div>
-          <span className={`text-[11px] font-semibold transition-colors
-            ${view === t.id ? 'text-[#6750A4]' : 'text-[#79747E]'}`}>
-            {t.label}
-          </span>
+          <Ico d={IC.chevron} s="w-5 h-5" col={P.textLight} />
         </button>
-      ))}
-    </div>
-  );
-}
 
-// ─── PUSH BANNER ──────────────────────────────────────────────────────────────
-function PushBanner({ onEnable, onDismiss }) {
-  return (
-    <div className="mx-4 mb-3 rounded-[24px] overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #6750A4 100%)', boxShadow: '0 4px 20px rgba(103,80,164,0.35)' }}>
-      <div className="p-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
-            <Icon d={Icons.bell} size="w-5 h-5" color="text-white" />
+        {section === 'archived' && (
+          <div style={{ marginTop:16, display:'flex', flexDirection:'column', gap:8 }}>
+            {archived.length === 0 ? (
+              <p style={{ textAlign:'center', color:P.textLight, fontSize:13, padding:'12px 0' }}>No hay notas archivadas</p>
+            ) : archived.map(n => (
+              <div key={n.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 12px', borderRadius:12, backgroundColor:P.surfHigh }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <p style={{ fontSize:14, fontWeight:600, color:P.text, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{n.title || 'Sin título'}</p>
+                </div>
+                <button onClick={() => onRestore(n.id)}
+                  style={{ border:'none', background:P.pCont, borderRadius:999, padding:'5px 12px', fontSize:12, color:P.primaryDark, cursor:'pointer', fontWeight:600, flexShrink:0, marginLeft:8, fontFamily:'inherit' }}>
+                  Restaurar
+                </button>
+              </div>
+            ))}
           </div>
-          <div>
-            <p className="text-sm font-bold text-white">Activar notificaciones</p>
-            <p className="text-xs text-white/70">Recibe alertas de tus recordatorios</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <button onClick={onDismiss} className="p-1.5 text-white/50 hover:text-white">
-            <Icon d={Icons.close} size="w-4 h-4" />
-          </button>
-          <button onClick={onEnable}
-            className="bg-white text-[#6750A4] text-xs font-bold px-3.5 py-1.5 rounded-full active:scale-95 transition-all">
-            Activar
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ─── APP ──────────────────────────────────────────────────────────────────────
+// ─── APP ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [view, setView]               = useState('home');
-  const [notes, setNotes]             = useState([]);
-  const [tags, setTags]               = useState([]);
-  const [reminders, setReminders]     = useState([]);
-  const [editingNote, setEditingNote] = useState(null);
-  const [showEditor, setShowEditor]   = useState(false);
-  const [loading, setLoading]         = useState(true);
-  const [pushEnabled, setPushEnabled] = useState(false);
-  const [showPushBanner, setShowPushBanner] = useState(false);
+  const [notes,      setNotes]      = useState([]);
+  const [tags,       setTags]       = useState([]);
+  const [reminders,  setReminders]  = useState([]);
+  const [view,       setView]       = useState('notes');
+  const [swipeLeft,  setSwipeLeft]  = useState(() => localStorage.getItem('swipeLeft')  || 'delete');
+  const [swipeRight, setSwipeRight] = useState(() => localStorage.getItem('swipeRight') || 'archive');
+  const [search,     setSearch]     = useState('');
+  const [activeTag,  setActiveTag]  = useState(null);
+  const [editor,     setEditor]     = useState(null);
+  const [loading,    setLoading]    = useState(true);
+  const [toast,      setToast]      = useState(null);
+  const [pushEnabled,setPushEnabled]= useState(false);
+  const [showPushBanner,setShowPushBanner] = useState(false);
 
+  const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2200); };
+
+  // ── Cargar datos ──
   const loadData = async () => {
-    const [{ data: notesRaw }, { data: tagsRaw }, { data: remindersRaw }, { data: noteTagsRaw }] =
-      await Promise.all([
-        supabase.from('notes').select('*').order('pinned', { ascending: false }).order('updated_at', { ascending: false }),
-        supabase.from('tags').select('*').order('name'),
-        supabase.from('reminders').select('*').order('scheduled_at'),
-        supabase.from('note_tags').select('*'),
-      ]);
+    const [{ data:notesRaw }, { data:tagsRaw }, { data:remindersRaw }, { data:noteTagsRaw }] = await Promise.all([
+      supabase.from('notes').select('*').order('pinned', { ascending:false }).order('updated_at', { ascending:false }),
+      supabase.from('tags').select('*').order('name'),
+      supabase.from('reminders').select('*').order('scheduled_at'),
+      supabase.from('note_tags').select('*'),
+    ]);
 
     const enriched = (notesRaw || []).map(n => ({
       ...n,
-      tag_ids: (noteTagsRaw || []).filter(nt => nt.note_id === n.id).map(nt => nt.tag_id),
-      reminder: (remindersRaw || []).find(r => r.note_id === n.id && !r.sent) || null,
+      tag_ids:  (noteTagsRaw  || []).filter(nt => nt.note_id === n.id).map(nt => nt.tag_id),
+      reminder: (remindersRaw || []).find(r => r.note_id === n.id && !r.sent)?.scheduled_at || null,
     }));
 
     setNotes(enriched);
@@ -610,95 +443,309 @@ export default function App() {
     setLoading(false);
   };
 
+  const loadTags = async () => {
+    const { data } = await supabase.from('tags').select('*').order('name');
+    setTags(data || []);
+  };
+
   useEffect(() => {
     loadData();
-    checkSubscription().then(enabled => {
-      setPushEnabled(enabled);
-      if (!enabled && Notification?.permission !== 'denied') {
-        setTimeout(() => setShowPushBanner(true), 2500);
-      }
+    checkSubscription().then(ok => {
+      setPushEnabled(ok);
+      if (!ok && Notification?.permission !== 'denied') setTimeout(() => setShowPushBanner(true), 2500);
     });
   }, []);
 
-  const handleEnablePush = async () => {
-    const ok = await subscribeToPush(supabase);
-    if (ok) { setPushEnabled(true); setShowPushBanner(false); }
+  // ── Acciones ──
+  const doSwipeAction = async (action, note) => {
+    const op = SWIPE_OPS[action];
+    if (!op.toast) return;
+    if (action === 'delete')  { await supabase.from('notes').delete().eq('id', note.id); }
+    if (action === 'archive') { await supabase.from('notes').update({ archived:true }).eq('id', note.id); }
+    if (action === 'pin')     { await supabase.from('notes').update({ pinned:!note.pinned }).eq('id', note.id); }
+    showToast(op.toast);
+    loadData();
   };
 
-  const saveNote = async ({ id, title, content, color, pinned, tag_ids, reminder }) => {
+  const pinNote = async id => {
+    const n = notes.find(x => x.id === id);
+    await supabase.from('notes').update({ pinned:!n.pinned }).eq('id', id);
+    loadData();
+  };
+
+  const deleteNote = async id => {
+    if (!confirm('¿Eliminar esta nota?')) return;
+    await supabase.from('notes').delete().eq('id', id);
+    showToast('🗑️ Nota eliminada');
+    loadData();
+  };
+
+  const restoreNote = async id => {
+    await supabase.from('notes').update({ archived:false }).eq('id', id);
+    showToast('✅ Nota restaurada');
+    loadData();
+  };
+
+  const saveNote = async ({ id, title, content, color, tag_ids, reminder }) => {
     let noteId = id;
     if (id) {
-      await supabase.from('notes').update({ title, content, color, pinned }).eq('id', id);
+      await supabase.from('notes').update({ title, content, color }).eq('id', id);
     } else {
-      const { data } = await supabase.from('notes').insert({ title, content, color, pinned }).select().single();
+      const { data } = await supabase.from('notes').insert({ title, content, color, pinned:false, archived:false }).select().single();
       noteId = data?.id;
     }
     if (!noteId) return;
 
     await supabase.from('note_tags').delete().eq('note_id', noteId);
     if (tag_ids?.length) {
-      await supabase.from('note_tags').insert(tag_ids.map(tag_id => ({ note_id: noteId, tag_id })));
+      await supabase.from('note_tags').insert(tag_ids.map(tag_id => ({ note_id:noteId, tag_id })));
     }
 
+    const existing = reminders.find(r => r.note_id === noteId && !r.sent);
     if (reminder) {
-      if (reminder.id) {
-        await supabase.from('reminders').update({ title: reminder.title, scheduled_at: reminder.scheduled_at, sent: false }).eq('id', reminder.id);
+      if (existing) {
+        await supabase.from('reminders').update({ scheduled_at:reminder, sent:false }).eq('id', existing.id);
       } else {
-        await supabase.from('reminders').insert({ note_id: noteId, title: reminder.title, body: content?.slice(0, 100) || '', scheduled_at: reminder.scheduled_at });
+        await supabase.from('reminders').insert({ note_id:noteId, title:title||'Recordatorio', body:content?.slice(0,100)||'', scheduled_at:reminder });
       }
-    } else if (id) {
-      await supabase.from('reminders').delete().eq('note_id', id).eq('sent', false);
+    } else if (existing) {
+      await supabase.from('reminders').delete().eq('id', existing.id);
     }
 
-    setShowEditor(false);
+    setEditor(null);
+    showToast(id ? '✅ Nota guardada' : '✅ Nota creada');
     loadData();
   };
 
-  const deleteNote = async (id) => {
-    if (!confirm('¿Eliminar esta nota?')) return;
-    await supabase.from('notes').delete().eq('id', id);
-    setShowEditor(false);
-    loadData();
+  const handleEnablePush = async () => {
+    const ok = await subscribeToPush(supabase);
+    if (ok) { setPushEnabled(true); setShowPushBanner(false); showToast('🔔 Notificaciones activadas'); }
   };
 
-  const viewTitles = { home: '📝 Notas', tags: '🏷️ Etiquetas', reminders: '🔔 Recordatorios' };
+  // ── Filtros ──
+  const active   = notes.filter(n => !n.archived);
+  const archived = notes.filter(n =>  n.archived);
+
+  const visible = active.filter(n => {
+    const mt = !search || n.title?.toLowerCase().includes(search.toLowerCase()) || n.content?.toLowerCase().includes(search.toLowerCase());
+    const mg = !activeTag || n.tag_ids?.includes(activeTag);
+    return mt && mg;
+  });
+
+  const pinned   = visible.filter(n => n.pinned);
+  const unpinned = visible.filter(n => !n.pinned);
+
+  // Recordatorios = notas activas con recordatorio
+  const withRem  = active.filter(n => n.reminder);
+  const remOver  = withRem.filter(n => over(n.reminder));
+  const remSoon  = withRem.filter(n => !over(n.reminder));
+
+  const TABS = [
+    { id:'notes',     label:'Notas',         icon:IC.note  },
+    { id:'reminders', label:'Recordatorios', icon:IC.bell  },
+    { id:'tools',     label:'Herramientas',  icon:IC.tools },
+  ];
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#F6F0FF]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#6750A4] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-[#79747E] text-sm font-medium">Cargando...</p>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', backgroundColor:P.bg }}>
+        <div style={{ textAlign:'center' }}>
+          <div style={{ width:48, height:48, border:`4px solid ${P.primary}`, borderTopColor:'transparent', borderRadius:'50%', animation:'spin 1s linear infinite', margin:'0 auto 12px' }} />
+          <p style={{ color:P.textMid, fontSize:14, fontWeight:500 }}>Cargando...</p>
         </div>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F0FF] flex flex-col max-w-lg mx-auto relative">
-      {/* Header */}
-      <div className="px-5 pt-14 pb-4 bg-[#F6F0FF]">
-        <h1 className="text-[28px] font-bold text-[#21005D]">{viewTitles[view]}</h1>
+    <div style={{ minHeight:'100vh', backgroundColor:P.bg, maxWidth:520, margin:'0 auto', fontFamily:"'DM Sans',system-ui,sans-serif", display:'flex', flexDirection:'column', position:'relative' }}>
+
+      {/* ── Toast ── */}
+      {toast && (
+        <div style={{ position:'fixed', top:16, left:0, right:0, maxWidth:520, margin:'0 auto', display:'flex', justifyContent:'center', zIndex:200, pointerEvents:'none' }}>
+          <div style={{ backgroundColor:P.onPCont, color:P.pCont, padding:'10px 20px', borderRadius:999, fontSize:13, fontWeight:600, boxShadow:'0 4px 20px rgba(0,0,0,.2)' }}>
+            {toast}
+          </div>
+        </div>
+      )}
+
+      {/* ── HEADER ── */}
+      <div style={{ background:`linear-gradient(135deg, ${P.gradA} 0%, ${P.gradB} 100%)`, borderRadius:'0 0 32px 32px', padding:'52px 22px 22px', marginBottom:16 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>
+          <div>
+            <p style={{ color:'#FCD34D', fontSize:13, fontWeight:500, marginBottom:3 }}>
+              {new Date().toLocaleDateString('es-ES', { weekday:'long', day:'numeric', month:'long' })}
+            </p>
+            <p style={{ color:'white', fontSize:26, fontWeight:800, letterSpacing:'-0.5px' }}>RubenceTask</p>
+          </div>
+          <div style={{ background:'rgba(255,255,255,.18)', backdropFilter:'blur(8px)', borderRadius:14, padding:'6px 12px', color:'white', fontSize:13, fontWeight:600 }}>
+            {active.length} nota{active.length!==1?'s':''}
+          </div>
+        </div>
+        {/* Barra push banner */}
+        {showPushBanner && !pushEnabled && (
+          <div style={{ background:'rgba(255,255,255,.15)', borderRadius:14, padding:'10px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <Ico d={IC.bell} s="w-4 h-4" col="#fff" />
+              <span style={{ color:'white', fontSize:13, fontWeight:600 }}>Activar notificaciones</span>
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setShowPushBanner(false)} style={{ background:'none', border:'none', color:'rgba(255,255,255,.6)', cursor:'pointer', fontSize:16 }}>×</button>
+              <button onClick={handleEnablePush} style={{ background:'white', color:P.primaryDark, border:'none', borderRadius:999, padding:'4px 12px', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>Activar</button>
+            </div>
+          </div>
+        )}
+        {/* Search */}
+        <div style={{ background:'white', borderRadius:16, display:'flex', alignItems:'center', gap:10, padding:'9px 14px', boxShadow:'0 4px 16px rgba(0,0,0,.15)' }}>
+          <Ico d={IC.search} s="w-4 h-4" col={P.textLight} />
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar notas..."
+            style={{ border:'none', outline:'none', flex:1, fontSize:14, color:P.text, fontFamily:"'DM Sans',system-ui,sans-serif", background:'transparent' }} />
+          {search && <button onClick={()=>setSearch('')} style={{ border:'none', background:'none', cursor:'pointer', color:P.textLight, fontSize:18, padding:0, lineHeight:1 }}>×</button>}
+        </div>
       </div>
 
-      {/* Push banner */}
-      {showPushBanner && !pushEnabled && (
-        <PushBanner onEnable={handleEnablePush} onDismiss={() => setShowPushBanner(false)} />
+      {/* ── NOTAS ── */}
+      {view === 'notes' && (
+        <div style={{ flex:1, overflowY:'auto', paddingBottom:120 }}>
+          {/* Filter chips */}
+          <div style={{ position:'relative', marginBottom:14, padding:'0 16px' }}>
+            <div style={{ display:'flex', gap:7, overflowX:'auto', paddingBottom:4, paddingRight:32, scrollbarWidth:'none', WebkitOverflowScrolling:'touch' }}>
+              {[{ id:null, name:'Todas', color:null }, ...tags].map(t => {
+                const active = activeTag === t.id;
+                return (
+                  <button key={t.id||'all'} onClick={() => setActiveTag(active ? null : t.id)}
+                    style={{ flexShrink:0, padding:'5px 14px', borderRadius:999, fontSize:12, fontWeight:600, cursor:'pointer', transition:'all .15s', border:`2px solid ${active?(t.color||P.primary):'transparent'}`, backgroundColor:active?(t.color+'22'||P.pCont):P.borderLight, color:active?(t.color||P.primaryDark):P.textMid, fontFamily:'inherit' }}>
+                    {t.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ padding:'0 16px', display:'flex', flexDirection:'column', gap:10 }}>
+            {pinned.length > 0 && (
+              <>
+                <p style={{ fontSize:11, fontWeight:700, color:P.textLight, textTransform:'uppercase', letterSpacing:1 }}>📌 Fijadas</p>
+                {pinned.map(n => (
+                  <Swipeable key={n.id} leftOp={swipeLeft} rightOp={swipeRight} onLeft={() => doSwipeAction(swipeLeft, n)} onRight={() => doSwipeAction(swipeRight, n)}>
+                    <NoteCard note={n} tags={tags} onEdit={() => setEditor(n)} onPin={pinNote} onDelete={deleteNote} />
+                  </Swipeable>
+                ))}
+                {unpinned.length > 0 && <p style={{ fontSize:11, fontWeight:700, color:P.textLight, textTransform:'uppercase', letterSpacing:1, marginTop:4 }}>Notas</p>}
+              </>
+            )}
+            {unpinned.map(n => (
+              <Swipeable key={n.id} leftOp={swipeLeft} rightOp={swipeRight} onLeft={() => doSwipeAction(swipeLeft, n)} onRight={() => doSwipeAction(swipeRight, n)}>
+                <NoteCard note={n} tags={tags} onEdit={() => setEditor(n)} onPin={pinNote} onDelete={deleteNote} />
+              </Swipeable>
+            ))}
+            {visible.length === 0 && (
+              <div style={{ textAlign:'center', paddingTop:60 }}>
+                <div style={{ fontSize:56, marginBottom:12 }}>📝</div>
+                <p style={{ fontWeight:700, color:P.textMid, fontSize:16 }}>Sin notas</p>
+                <p style={{ color:P.textLight, fontSize:13, marginTop:4 }}>Pulsa + para crear una</p>
+              </div>
+            )}
+          </div>
+
+          {/* Extended FAB M3 */}
+          <div style={{ position:'fixed', bottom:88, right:16, zIndex:10 }}>
+            <button onClick={() => setEditor('new')}
+              style={{ display:'flex', alignItems:'center', gap:8, height:56, padding:'0 20px', backgroundColor:P.pCont, color:P.onPCont, border:'none', borderRadius:999, fontSize:15, fontWeight:700, cursor:'pointer', boxShadow:'0 3px 8px rgba(123,88,0,.24),0 6px 20px rgba(123,88,0,.15)', fontFamily:'inherit' }}>
+              <Ico d={IC.plus} s="w-6 h-6" col={P.onPCont} />
+              Nueva nota
+            </button>
+          </div>
+        </div>
       )}
 
-      {view === 'home'      && <HomeView notes={notes} tags={tags}
-        onNoteClick={n => { setEditingNote(n); setShowEditor(true); }}
-        onNewNote={() => { setEditingNote(null); setShowEditor(true); }} />}
-      {view === 'tags'      && <TagsView tags={tags} onRefresh={loadData} />}
-      {view === 'reminders' && <RemindersView reminders={reminders} notes={notes} />}
-
-      <BottomNav view={view} onChange={setView} />
-
-      {showEditor && (
-        <NoteEditor note={editingNote} tags={tags}
-          onSave={saveNote} onDelete={deleteNote}
-          onClose={() => setShowEditor(false)} />
+      {/* ── RECORDATORIOS ── */}
+      {view === 'reminders' && (
+        <div style={{ flex:1, overflowY:'auto', padding:'0 16px', paddingBottom:100 }}>
+          {withRem.length === 0 ? (
+            <div style={{ textAlign:'center', paddingTop:60 }}>
+              <div style={{ fontSize:56, marginBottom:12 }}>🔔</div>
+              <p style={{ fontWeight:700, color:P.textMid, fontSize:16 }}>Sin recordatorios</p>
+              <p style={{ color:P.textLight, fontSize:13, marginTop:4 }}>Añade un recordatorio a una nota</p>
+            </div>
+          ) : (
+            <>
+              {remOver.length > 0 && (
+                <div style={{ marginBottom:16 }}>
+                  <p style={{ fontSize:11, fontWeight:700, color:P.error, textTransform:'uppercase', letterSpacing:1, marginBottom:8 }}>⚠️ Vencidos</p>
+                  {remOver.map(n => (
+                    <div key={n.id} onClick={() => setEditor(n)}
+                      style={{ backgroundColor:P.card, borderRadius:20, overflow:'hidden', display:'flex', marginBottom:8, boxShadow:'0 1px 6px rgba(0,0,0,.07)', border:`1px solid ${P.errCont}`, cursor:'pointer' }}>
+                      <div style={{ width:4, backgroundColor:P.error }} />
+                      <div style={{ flex:1, padding:'12px 14px' }}>
+                        <p style={{ fontWeight:700, fontSize:15, color:P.text }}>{n.title}</p>
+                        <p style={{ fontSize:12, color:P.error, fontWeight:600, marginTop:3 }}>⚠️ {fmt(n.reminder)}</p>
+                      </div>
+                      <div style={{ padding:'12px 12px', display:'flex', alignItems:'center' }}>
+                        <span style={{ fontSize:10, fontWeight:700, padding:'3px 10px', borderRadius:999, backgroundColor:P.errCont, color:P.error }}>VENCIDO</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {remSoon.length > 0 && (
+                <div>
+                  <p style={{ fontSize:11, fontWeight:700, color:P.primary, textTransform:'uppercase', letterSpacing:1, marginBottom:8 }}>🔔 Próximos</p>
+                  {remSoon.map(n => (
+                    <div key={n.id} onClick={() => setEditor(n)}
+                      style={{ backgroundColor:P.card, borderRadius:20, overflow:'hidden', display:'flex', marginBottom:8, boxShadow:'0 1px 6px rgba(0,0,0,.07)', border:`1px solid ${P.borderLight}`, cursor:'pointer' }}>
+                      <div style={{ width:4, backgroundColor:P.primary }} />
+                      <div style={{ flex:1, padding:'12px 14px' }}>
+                        <p style={{ fontWeight:700, fontSize:15, color:P.text }}>{n.title}</p>
+                        <p style={{ fontSize:12, color:P.primary, fontWeight:600, marginTop:3 }}>🔔 {fmt(n.reminder)}</p>
+                      </div>
+                      <div style={{ padding:'12px 12px', display:'flex', alignItems:'center' }}>
+                        <span style={{ fontSize:10, fontWeight:700, padding:'3px 10px', borderRadius:999, backgroundColor:P.pCont, color:P.primaryDark }}>PRÓXIMO</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       )}
+
+      {/* ── HERRAMIENTAS ── */}
+      {view === 'tools' && (
+        <ToolsTab
+          tags={tags} onRefreshTags={loadTags}
+          swipeLeft={swipeLeft} setSwipeLeft={setSwipeLeft}
+          swipeRight={swipeRight} setSwipeRight={setSwipeRight}
+          archived={archived} onRestore={restoreNote}
+        />
+      )}
+
+      {/* ── BOTTOM NAV ── */}
+      <div style={{ position:'fixed', bottom:0, left:0, right:0, maxWidth:520, width:'100%', margin:'0 auto', backgroundColor:'rgba(255,251,240,.97)', backdropFilter:'blur(20px)', borderTop:`1px solid ${P.borderLight}`, display:'flex', boxShadow:`0 -2px 16px rgba(123,88,0,.07)` }}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setView(t.id)}
+            style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', padding:'10px 0 8px', gap:4, background:'none', border:'none', cursor:'pointer', fontFamily:'inherit' }}>
+            <div style={{ width:64, height:32, borderRadius:999, display:'flex', alignItems:'center', justifyContent:'center', backgroundColor:view===t.id?P.secCont:'transparent', transition:'background .2s' }}>
+              <Ico d={t.icon} s="w-5 h-5" col={view===t.id?P.primary:P.textLight} />
+            </div>
+            <span style={{ fontSize:11, fontWeight:600, color:view===t.id?P.primary:P.textLight }}>{t.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── EDITOR ── */}
+      {editor && (
+        <NoteEditor
+          note={editor === 'new' ? null : editor}
+          tags={tags}
+          onSave={saveNote}
+          onClose={() => setEditor(null)}
+        />
+      )}
+
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
