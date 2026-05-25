@@ -115,9 +115,7 @@ function NoteCard({ note, tags, onEdit, onPin, onDelete }) {
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8, marginBottom:4 }}>
           <div style={{ flex:1, minWidth:0 }}>
             {note.pinned && <span style={{ fontSize:11, color:P.primary, fontWeight:700, marginRight:5 }}>📌</span>}
-            <span style={{ fontSize:15, fontWeight:700, color:P.text, lineHeight:1.4 }}>
-              {note.title || <span style={{ color:P.textLight, fontStyle:'italic', fontWeight:400 }}>Sin título</span>}
-            </span>
+            {note.title && <span style={{ fontSize:17, fontWeight:700, color:P.text, lineHeight:1.4 }}>{note.title}</span>}
           </div>
           {first && (
             <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:999, backgroundColor:ts.bg, color:ts.text, flexShrink:0, border:`1px solid ${first.color}44` }}>
@@ -126,7 +124,7 @@ function NoteCard({ note, tags, onEdit, onPin, onDelete }) {
           )}
         </div>
         {note.content && (
-          <p style={{ fontSize:13, color:P.textMid, lineHeight:1.5, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', marginBottom:ntags.length||note.reminder?6:0 }}>
+          <p style={{ fontSize:15, color:P.textMid, lineHeight:1.5, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', marginBottom:ntags.length||note.reminder?6:0 }}>
             {note.content}
           </p>
         )}
@@ -197,7 +195,7 @@ function NoteEditor({ note, tags, onSave, onClose }) {
             {saving ? '...' : 'Guardar'}
           </button>
         </div>
-        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Título"
+        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Título (opcional)"
           style={{ width:'100%', fontSize:20, fontWeight:700, border:'none', outline:'none', backgroundColor:'transparent', color:P.text, marginBottom:10, fontFamily:'inherit' }} />
         <textarea value={content} onChange={e=>setContent(e.target.value)} placeholder="Escribe tu nota..." rows={5}
           style={{ width:'100%', fontSize:14, border:'none', outline:'none', backgroundColor:'transparent', color:P.textMid, resize:'none', lineHeight:1.6, marginBottom:16, fontFamily:'inherit' }} />
