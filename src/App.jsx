@@ -455,8 +455,91 @@ function ToolsTab({ tags, onRefreshTags, swipeLeft, setSwipeLeft, swipeRight, se
   );
 }
 
+
+// ─── PIN SCREEN ──────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'rt_unlocked';
+
+function PinScreen({ onUnlock }) {
+  const [input,  setInput]  = useState('');
+  const [shake,  setShake]  = useState(false);
+  const [error,  setError]  = useState(false);
+  const PIN = import.meta.env.VITE_APP_PIN || '0000';
+
+  const press = (d) => {
+    if (input.length >= 4) return;
+    const next = input + d;
+    setInput(next);
+    setError(false);
+    if (next.length === 4) {
+      if (next === PIN) {
+        localStorage.setItem(STORAGE_KEY, '1');
+        onUnlock();
+      } else {
+        setShake(true);
+        setError(true);
+        setTimeout(() => { setShake(false); setInput(''); }, 700);
+      }
+    }
+  };
+
+  const del = () => { setInput(p => p.slice(0, -1)); setError(false); };
+
+  const KEYS = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+
+  return (
+    <div style={{ minHeight:'100vh', backgroundColor:P.bg, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontFamily:"'DM Sans',system-ui,sans-serif", padding:24 }}>
+      {/* Logo / título */}
+      <div style={{ textAlign:'center', marginBottom:48 }}>
+        <div style={{ width:72, height:72, borderRadius:24, background:`linear-gradient(135deg, ${P.gradA}, ${P.gradB})`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', boxShadow:'0 8px 24px rgba(180,83,9,.3)' }}>
+          <span style={{ fontSize:36 }}>📝</span>
+        </div>
+        <p style={{ fontSize:26, fontWeight:800, color:P.onPCont, marginBottom:4 }}>RubenceTask</p>
+        <p style={{ fontSize:14, color:P.textMid }}>Introduce tu PIN para continuar</p>
+      </div>
+
+      {/* Puntos PIN */}
+      <div style={{ display:'flex', gap:16, marginBottom:8, animation:shake?'shake .4s ease':'none' }}>
+        {[0,1,2,3].map(i => (
+          <div key={i} style={{ width:16, height:16, borderRadius:'50%', border:`2px solid ${error?P.error:P.primary}`, backgroundColor:input.length>i?(error?P.error:P.primary):'transparent', transition:'all .15s' }} />
+        ))}
+      </div>
+      {error && <p style={{ fontSize:12, color:P.error, fontWeight:600, marginBottom:16 }}>PIN incorrecto</p>}
+      {!error && <div style={{ height:28 }} />}
+
+      {/* Teclado numérico */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:12, width:'100%', maxWidth:280 }}>
+        {KEYS.map((k, i) => (
+          k === '' ? <div key={i} /> :
+          k === '⌫' ? (
+            <button key={i} onClick={del}
+              style={{ height:64, borderRadius:20, border:'none', backgroundColor:P.surfHigh, fontSize:22, color:P.textMid, cursor:'pointer', fontFamily:'inherit', fontWeight:500 }}>
+              ⌫
+            </button>
+          ) : (
+            <button key={i} onClick={() => press(k)}
+              style={{ height:64, borderRadius:20, border:'none', backgroundColor:P.card, fontSize:22, fontWeight:600, color:P.text, cursor:'pointer', fontFamily:'inherit', boxShadow:'0 1px 4px rgba(0,0,0,.08)', transition:'all .1s', border:`1px solid ${P.borderLight}` }}>
+              {k}
+            </button>
+          )
+        ))}
+      </div>
+
+      <style>{`
+        @keyframes shake {
+          0%,100% { transform: translateX(0); }
+          20%      { transform: translateX(-8px); }
+          40%      { transform: translateX(8px); }
+          60%      { transform: translateX(-6px); }
+          80%      { transform: translateX(6px); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 // ─── APP ─────────────────────────────────────────────────────────────────────
 export default function App() {
+  const [unlocked, setUnlocked] = useState(() => localStorage.getItem(STORAGE_KEY) === '1');
   const [notes,      setNotes]      = useState([]);
   const [tags,       setTags]       = useState([]);
   const [reminders,  setReminders]  = useState([]);
@@ -647,6 +730,10 @@ export default function App() {
     { id:'reminders', label:'Recordatorios', icon:IC.bell  },
     { id:'tools',     label:'Herramientas',  icon:IC.tools },
   ];
+
+  if (!unlocked) {
+    return <PinScreen onUnlock={() => setUnlocked(true)} />;
+  }
 
   if (loading) {
     return (
